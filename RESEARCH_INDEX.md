@@ -17,3 +17,4 @@ Thư mục dự án: `/Users/shawn/Codex/Vibes Coding/Telegram_runner-app`
 
 - [`research/2026-08-15-preliminary-product-feasibility.md`](research/2026-08-15-preliminary-product-feasibility.md) — Research sơ bộ về định vị sản phẩm, GPS Telegram Mini App, TON reward escrow, anti-cheat, đối thủ và các bài test trước MVP.
 - [`research/2026-08-15-product-decisions-and-demo-direction.md`](research/2026-08-15-product-decisions-and-demo-direction.md) — Các quyết định về campaign duration, KYB, pricing, launch market và phạm vi demo gọi vốn.
+- [`research/2026-08-16-runner-app-market-and-post-run-rewards.md`](research/2026-08-16-runner-app-market-and-post-run-rewards.md) — Đối chiếu Nike Run Club, adidas Running, Strava, Runna và StepBet; quyết định flow chạy trước, auto-match reward sau, không lưu route GPS dài hạn.

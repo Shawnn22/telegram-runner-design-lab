@@ -10,7 +10,7 @@ Web3 projects đang dùng social task để phân phối reward nhưng khó tạ
 
 ## Demo goal
 
-Chứng minh một flow hoàn chỉnh: project được duyệt → tạo campaign → fund pool → runner tham gia → lưu activity → kiểm tra reward riêng → challenge window → claim reward.
+Chứng minh một flow hoàn chỉnh: project được duyệt → tạo campaign → fund pool → runner chạy tự do → lưu activity proof → auto-match reward riêng → challenge window → claim reward.
 
 ## Personas
 
@@ -30,12 +30,12 @@ Chứng minh một flow hoàn chỉnh: project được duyệt → tạo campai
 
 ### Runner Mini App
 
-- Browse và join campaign.
-- Wallet connection state.
+- Quick Run không cần join campaign hoặc kết nối wallet.
+- Wallet connection chỉ xuất hiện khi user muốn claim reward.
 - Chọn `Live GPS` hoặc `Demo route` có nhãn rõ ràng.
 - Start/Stop run, hiển thị time, distance, pace và GPS status.
-- Activity history tách biệt với reward checking/claim state.
-- Result checking, completion status, challenge window và claim state trong mục Rewards riêng.
+- Activity history tách biệt với reward checking/claim state; sau session chỉ giữ summary + activity proof, không persist full GPS route.
+- Result auto-match, completion status, challenge window và claim state trong mục Rewards riêng.
 
 ### Trust model
 
@@ -47,8 +47,8 @@ Chứng minh một flow hoàn chỉnh: project được duyệt → tạo campai
 
 - Given project chưa verified, when bấm approve demo KYB, then có thể vào campaign wizard.
 - Given campaign draft, when hoàn thành các bước và fund demo pool, then campaign chuyển sang `Funded / Live`.
-- Given runner đã join, when Start Run, then app bắt đầu session bằng GPS thật hoặc demo route được gắn nhãn.
-- Given runner kết thúc run, when Stop Run, then activity được lưu và hiển thị trong Activity, không tự động chuyển thành reward.
+- Given runner chưa join campaign và chưa có wallet, when Start Quick Run, then app bắt đầu session bằng GPS thật hoặc demo route được gắn nhãn.
+- Given runner kết thúc run, when Stop Run, then activity summary/proof được lưu trong Activity, raw GPS points bị bỏ và không tự động chuyển thành reward.
 - Given runner mở Rewards, when demo oracle check hoàn thành, then eligibility được hiển thị riêng khỏi activity record.
 - Given challenge window được fast-forward trong demo, when claim, then reward chuyển sang claimed.
 - Mọi integration mô phỏng đều có badge và giải thích, không được trình bày như production.
