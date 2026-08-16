@@ -16,7 +16,8 @@ Hybrid fundraising demo for a Telegram Mini App that connects TON projects with 
 1. Connect the demo TON wallet state.
 2. Join the sponsored campaign.
 3. Use live foreground GPS or a time-compressed demo route.
-4. Finish the run, pass the demo oracle review and claim a demo reward.
+4. Finish the run and save it to Activity.
+5. Open Rewards for the separate eligibility check and demo claim.
 
 The UI labels every mocked integration. Production KYB, anti-cheat and TON settlement are not represented as complete.
 
@@ -34,6 +35,7 @@ npm test
 ## Product documents
 
 - `PRD_DEMO.md`
+- `QA_FLOW_AUDIT.md`
 - `RESEARCH_INDEX.md`
 - `research/2026-08-15-preliminary-product-feasibility.md`
 - `research/2026-08-15-product-decisions-and-demo-direction.md`

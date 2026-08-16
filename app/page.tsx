@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 
 type Surface = "home" | "runner" | "admin";
-type RunnerStage = "discover" | "joined" | "tracking" | "result" | "claim";
+type RunnerStage = "discover" | "joined" | "tracking";
+type RunnerTab = "campaigns" | "activity" | "rewards";
+type RewardStatus = "checking" | "eligible" | "more-running" | "claimed";
 
 type Point = {
   latitude: number;
@@ -117,12 +119,16 @@ function HomeScreen({ onOpen }: { onOpen: (surface: Surface) => void }) {
 
 function RunnerApp() {
   const [stage, setStage] = useState<RunnerStage>("discover");
+  const [tab, setTab] = useState<RunnerTab>("campaigns");
   const [wallet, setWallet] = useState(false);
+  const [walletSheet, setWalletSheet] = useState(false);
   const [trackingMode, setTrackingMode] = useState<"demo" | "live">("demo");
   const [tracking, setTracking] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [distance, setDistance] = useState(0);
   const [gpsStatus, setGpsStatus] = useState("Ready");
+  const [savedRun, setSavedRun] = useState<{ distance: number; seconds: number; mode: "demo" | "live" } | null>(null);
+  const [rewardStatus, setRewardStatus] = useState<RewardStatus>("checking");
   const lastPoint = useRef<Point | null>(null);
   const watchId = useRef<number | null>(null);
 
@@ -140,6 +146,9 @@ function RunnerApp() {
   }, []);
 
   function startRun() {
+    setSeconds(0);
+    setDistance(0);
+    lastPoint.current = null;
     setStage("tracking");
     setTracking(true);
     setGpsStatus(trackingMode === "demo" ? "Simulated route active" : "Requesting live GPS…");
@@ -168,7 +177,10 @@ function RunnerApp() {
   function stopRun() {
     setTracking(false);
     if (watchId.current !== null && navigator.geolocation) navigator.geolocation.clearWatch(watchId.current);
-    setStage("result");
+    setSavedRun({ distance, seconds, mode: trackingMode });
+    setRewardStatus("checking");
+    setStage("discover");
+    setTab("activity");
   }
 
   const pace = distance > 0 ? Math.max(4, seconds / 60 / distance) : 0;
@@ -193,33 +205,18 @@ function RunnerApp() {
     );
   }
 
-  if (stage === "result" || stage === "claim") {
-    const complete = distance >= campaign.goal * 0.95 || trackingMode === "demo";
-    return (
-      <section className="runner-surface centered-flow">
-        <div className="success-ring"><span>{stage === "claim" ? "TON" : "✓"}</span></div>
-        <Badge tone={stage === "claim" ? "green" : "blue"}>{stage === "claim" ? "REWARD CLAIMED" : "ORACLE REVIEW COMPLETE"}</Badge>
-        <h2>{stage === "claim" ? "Reward received." : complete ? "Run accepted." : "Run recorded."}</h2>
-        <p>{stage === "claim" ? "Your testnet reward was released from the campaign escrow." : "Demo anti-cheat checks passed. The 24-hour challenge window is time-compressed for this presentation."}</p>
-        <div className="result-card">
-          <div><span>Distance</span><b>{distance.toFixed(2)} km</b></div><div><span>Time</span><b>{formatTime(seconds)}</b></div><div><span>Status</span><b>{complete ? "Eligible" : "Recorded"}</b></div>
-        </div>
-        {stage === "result" ? (
-          <button className="button button-primary" onClick={() => setStage("claim")}>Fast-forward & claim demo reward <span>→</span></button>
-        ) : (
-          <button className="button button-secondary" onClick={() => { setStage("discover"); setSeconds(0); setDistance(0); }}>Return to campaigns</button>
-        )}
-        <p className="simulation-note"><b>Demo boundary:</b> result attestation and payout are simulated in this UI checkpoint. TON testnet adapter follows in the next build phase.</p>
-      </section>
-    );
-  }
-
   return (
     <section className="runner-surface">
       <div className="runner-header">
         <div><Badge tone="blue">TELEGRAM MINI APP</Badge><h2>Good morning, runner.</h2><p>Your next onchain finish line is ready.</p></div>
-        <button className={`wallet-chip ${wallet ? "connected" : ""}`} onClick={() => setWallet(!wallet)}>{wallet ? "EQC4…91x · Connected" : "Connect TON wallet"}</button>
+        <button className={`wallet-chip ${wallet ? "connected" : ""}`} onClick={() => setWalletSheet(true)}>{wallet ? "EQC4…91x · Connected" : "Connect TON wallet"}</button>
       </div>
+      <nav className="runner-nav" aria-label="Runner sections">
+        <button className={tab === "campaigns" ? "active" : ""} onClick={() => setTab("campaigns")}>Campaigns</button>
+        <button className={tab === "activity" ? "active" : ""} onClick={() => setTab("activity")}>Activity {savedRun && <span>1</span>}</button>
+        <button className={tab === "rewards" ? "active" : ""} onClick={() => setTab("rewards")}>Rewards {savedRun && rewardStatus !== "claimed" && <span>1</span>}</button>
+      </nav>
+      {tab === "campaigns" && <>
       <div className="campaign-feature">
         <div className="campaign-art"><span className="globe-ring ring-a" /><span className="globe-ring ring-b" /><strong>5K</strong><small>GLOBAL WEEK</small></div>
         <div className="campaign-info">
@@ -238,8 +235,28 @@ function RunnerApp() {
         </div>
       )}
       <div className="transparency-card"><div className="status-icon">◈</div><div><b>Reward escrow is transparent</b><p>The sponsor-funded pool is locked before the campaign begins. GPS is verified offchain; payout rules execute on TON.</p></div><button>View contract ↗</button></div>
+      </>}
+      {tab === "activity" && <ActivityScreen savedRun={savedRun} onRewards={() => setTab("rewards")} onCampaigns={() => setTab("campaigns")} />}
+      {tab === "rewards" && <RewardsScreen savedRun={savedRun} rewardStatus={rewardStatus} onCheck={() => setRewardStatus((savedRun?.distance ?? 0) >= campaign.goal * 0.95 ? "eligible" : "more-running")} onClaim={() => setRewardStatus("claimed")} onCampaigns={() => setTab("campaigns")} />}
+      {walletSheet && <WalletSheet connected={wallet} onClose={() => setWalletSheet(false)} onConnect={() => { setWallet(true); setWalletSheet(false); }} />}
     </section>
   );
+}
+
+function WalletSheet({ connected, onClose, onConnect }: { connected: boolean; onClose: () => void; onConnect: () => void }) {
+  return <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="TON wallet connection"><div className="wallet-modal"><button className="modal-close" onClick={onClose} aria-label="Close wallet dialog">×</button><Badge tone="amber">SIMULATED WALLET</Badge><h2>{connected ? "Wallet connected" : "Connect a TON wallet"}</h2><p>{connected ? "EQC4…91x is ready for campaign eligibility and future reward claims." : "A real release will use TON Connect. This demo makes the connection state visible without requesting a wallet signature."}</p><div className="wallet-option"><span className="ton-logo">◆</span><div><b>TON Space</b><small>{connected ? "Connected to demo account" : "Recommended wallet"}</small></div>{connected ? <Badge tone="green">CONNECTED</Badge> : <button className="button button-primary" onClick={onConnect}>Connect demo</button>}</div><p className="simulation-note">No wallet keys, transaction or personal data are requested in this demo.</p></div></div>;
+}
+
+function ActivityScreen({ savedRun, onRewards, onCampaigns }: { savedRun: { distance: number; seconds: number; mode: "demo" | "live" } | null; onRewards: () => void; onCampaigns: () => void }) {
+  if (!savedRun) return <div className="empty-state"><div className="empty-icon">↗</div><Badge tone="neutral">NO ACTIVITIES YET</Badge><h2>Your run history will live here.</h2><p>Start a foreground GPS session from a campaign. Saving an activity never guarantees a reward — eligibility is checked separately.</p><button className="button button-primary" onClick={onCampaigns}>Find a campaign <span>→</span></button></div>;
+  return <div className="activity-view"><div className="section-heading"><div><Badge tone="green">ACTIVITY SAVED</Badge><h1>Nice work. Your run is on record.</h1><p>The activity is stored first. Reward eligibility is checked separately in Rewards.</p></div><button className="button button-primary" onClick={onRewards}>View reward check <span>→</span></button></div><div className="activity-card"><div className="activity-map"><span className="track-line track-one" /><span className="track-line track-two" /><span className="track-line track-three" /><span className="runner-pulse"><i /></span></div><div className="activity-body"><div className="activity-meta"><Badge tone={savedRun.mode === "live" ? "green" : "amber"}>{savedRun.mode === "live" ? "LIVE GPS" : "DEMO ROUTE"}</Badge><span>Saved just now · TON Global 5K Week</span></div><div className="activity-stats"><div><b>{savedRun.distance.toFixed(2)}</b><span>KM</span></div><div><b>{formatTime(savedRun.seconds)}</b><span>TIME</span></div><div><b>{savedRun.distance ? `${Math.floor(savedRun.seconds / 60 / savedRun.distance)}:${Math.round(((savedRun.seconds / 60 / savedRun.distance) % 1) * 60).toString().padStart(2, "0")}` : "--:--"}</b><span>PACE /KM</span></div></div><div className="activity-save-note"><span>✓</span><p><b>Activity session saved</b><small>GPS points, timing and device signals are queued for campaign verification.</small></p></div></div></div></div>;
+}
+
+function RewardsScreen({ savedRun, rewardStatus, onCheck, onClaim, onCampaigns }: { savedRun: { distance: number; seconds: number; mode: "demo" | "live" } | null; rewardStatus: RewardStatus; onCheck: () => void; onClaim: () => void; onCampaigns: () => void }) {
+  if (!savedRun) return <div className="empty-state"><div className="empty-icon">◆</div><Badge tone="neutral">NO REWARDS TO CHECK</Badge><h2>Rewards appear after a saved activity.</h2><p>Join a campaign, save a run, then this space will show the verification and claim status separately from your activity history.</p><button className="button button-primary" onClick={onCampaigns}>Browse campaigns <span>→</span></button></div>;
+  const complete = savedRun.distance >= campaign.goal * 0.95;
+  if (rewardStatus === "claimed") return <div className="reward-centered"><div className="success-ring"><span>TON</span></div><Badge tone="green">REWARD CLAIMED</Badge><h2>Reward released.</h2><p>Your demo payout was released from the campaign escrow after the separate eligibility check completed.</p><div className="result-card"><div><span>Campaign</span><b>TON Global 5K Week</b></div><div><span>Reward</span><b>Demo TON</b></div><div><span>Claim status</span><b>Complete</b></div></div><p className="simulation-note"><b>Demo boundary:</b> payout is simulated. A production release will call the TON testnet contract after a signed oracle result.</p></div>;
+  return <div className="rewards-view"><div className="section-heading"><div><Badge tone={rewardStatus === "checking" ? "amber" : rewardStatus === "eligible" ? "green" : "neutral"}>{rewardStatus === "checking" ? "CHECKING" : rewardStatus === "eligible" ? "ELIGIBLE" : "MORE ACTIVITY NEEDED"}</Badge><h1>Campaign reward check</h1><p>Activity is already saved. This is the separate place that evaluates campaign eligibility and later opens a claim.</p></div></div><div className="reward-check-card"><div className="check-orbit"><span>{rewardStatus === "eligible" ? "✓" : rewardStatus === "more-running" ? "5K" : "…"}</span></div><div className="check-content"><div className="campaign-badges"><Badge tone="green">POOL FUNDED</Badge><Badge tone="neutral">{campaign.pool}</Badge></div><h2>{campaign.name}</h2><p>{rewardStatus === "checking" ? "We are checking the saved session against the campaign rule. This does not change your activity record." : rewardStatus === "eligible" ? "Your saved activity meets the campaign rule. Claim is now available after the time-compressed challenge window." : `${Math.max(0, campaign.goal - savedRun.distance).toFixed(2)} km remains before you can qualify for this completion pool.`}</p><div className="check-timeline"><div className="done"><span>✓</span><p><b>Activity saved</b><small>{savedRun.distance.toFixed(2)} km recorded</small></p></div><div className={rewardStatus === "checking" ? "active" : "done"}><span>{rewardStatus === "checking" ? "2" : "✓"}</span><p><b>GPS & session check</b><small>{rewardStatus === "checking" ? "Awaiting demo oracle" : "Passed demo checks"}</small></p></div><div className={rewardStatus === "eligible" || rewardStatus === "more-running" ? "done" : ""}><span>{rewardStatus === "checking" ? "3" : "✓"}</span><p><b>Campaign eligibility</b><small>{rewardStatus === "eligible" ? "Completion rule met" : rewardStatus === "more-running" ? "Goal not met yet" : "Waiting for review"}</small></p></div></div>{rewardStatus === "checking" && <button className="button button-primary" onClick={onCheck}>Run demo eligibility check <span>→</span></button>}{rewardStatus === "eligible" && <button className="button button-primary" onClick={onClaim}>Claim demo reward <span>→</span></button>}{rewardStatus === "more-running" && <button className="button button-primary" onClick={onCampaigns}>Log another run <span>→</span></button>}</div></div>{!complete && rewardStatus !== "more-running" && <p className="simulation-note"><b>Demo note:</b> this saved route is below the 5 km completion requirement. The check correctly keeps it out of the claim flow.</p>}</div>;
 }
 
 function AdminConsole() {

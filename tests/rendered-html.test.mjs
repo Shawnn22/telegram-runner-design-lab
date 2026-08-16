@@ -35,6 +35,10 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /Approve demo transaction/i);
   assert.match(page, /Demo boundary/i);
   assert.match(page, /navigator\.geolocation\.watchPosition/);
+  assert.match(page, /Activity saved/i);
+  assert.match(page, /Campaign reward check/i);
+  assert.match(page, /Run demo eligibility check/i);
+  assert.match(page, /Connect a TON wallet/i);
   const previewFiles = await readdir(new URL("../app/_sites-preview", import.meta.url));
   assert.deepEqual(previewFiles, []);
 });
