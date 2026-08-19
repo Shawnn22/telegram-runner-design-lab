@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {
+  getTelegramLocationManager,
+  initializeTelegramLocation,
+  requestTelegramLocation,
+  type TelegramLocationManager,
+} from "./telegram-location";
 
 type Surface = "home" | "runner" | "admin";
 type RunnerStage = "ready" | "tracking";
@@ -134,10 +140,14 @@ function RunnerApp() {
   const [seconds, setSeconds] = useState(0);
   const [distance, setDistance] = useState(0);
   const [gpsStatus, setGpsStatus] = useState("Ready");
+  const [locationBlocked, setLocationBlocked] = useState(false);
   const [savedRuns, setSavedRuns] = useState<SavedRun[]>([]);
   const [rewardStatus, setRewardStatus] = useState<RewardStatus>("checking");
   const lastPoint = useRef<Point | null>(null);
   const watchId = useRef<number | null>(null);
+  const telegramPollId = useRef<number | null>(null);
+  const telegramLocationManager = useRef<TelegramLocationManager | null>(null);
+  const liveSessionId = useRef(0);
 
   useEffect(() => {
     if (!tracking) return;
@@ -148,43 +158,140 @@ function RunnerApp() {
     return () => window.clearInterval(timer);
   }, [tracking, trackingMode]);
 
-  useEffect(() => () => {
-    if (watchId.current !== null && navigator.geolocation) navigator.geolocation.clearWatch(watchId.current);
-  }, []);
+  useEffect(() => () => clearLiveLocation(), []);
 
-  function startRun() {
+  function clearLiveLocation() {
+    if (watchId.current !== null && navigator.geolocation) navigator.geolocation.clearWatch(watchId.current);
+    if (telegramPollId.current !== null) window.clearInterval(telegramPollId.current);
+    watchId.current = null;
+    telegramPollId.current = null;
+  }
+
+  function recordLocation(next: Point, source: "Telegram" | "Device") {
+    const accuracy = next.accuracy ?? Number.POSITIVE_INFINITY;
+    if (accuracy > 65) {
+      setGpsStatus(`${source} GPS is searching for a stronger signal`);
+      return;
+    }
+
+    const previous = lastPoint.current;
+    if (previous) {
+      const delta = haversineKm(previous, next);
+      const elapsedSeconds = Math.max(1, (next.timestamp - previous.timestamp) / 1000);
+      const speedKmh = (delta / elapsedSeconds) * 3600;
+      if (delta >= 0.003 && delta < 0.25 && speedKmh <= 28) setDistance((value) => value + delta);
+      if (delta >= 0.25 || speedKmh > 28) {
+        setGpsStatus(`${source} GPS ignored an implausible jump`);
+        return;
+      }
+    }
+
+    lastPoint.current = next;
+    setGpsStatus(`${source} GPS · ±${Math.round(accuracy)}m`);
+  }
+
+  function beginLiveSession(status: string) {
+    liveSessionId.current += 1;
     setSeconds(0);
     setDistance(0);
     lastPoint.current = null;
+    setLocationBlocked(false);
     setStage("tracking");
     setTracking(true);
-    setGpsStatus(trackingMode === "demo" ? "Simulated route active" : "Requesting live GPS…");
-    if (trackingMode === "live" && navigator.geolocation) {
-      watchId.current = navigator.geolocation.watchPosition(
-        (position) => {
-          const next: Point = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            timestamp: position.timestamp,
-          };
-          if (lastPoint.current && (next.accuracy ?? 999) < 60) {
-            const delta = haversineKm(lastPoint.current, next);
-            if (delta < 0.25) setDistance((value) => value + delta);
-          }
-          lastPoint.current = next;
-          setGpsStatus(`Live GPS · ±${Math.round(position.coords.accuracy)}m`);
-        },
-        () => setGpsStatus("GPS unavailable — switch to demo route"),
-        { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 },
-      );
+    setGpsStatus(status);
+    return liveSessionId.current;
+  }
+
+  function stopUnavailableGps(message: string, canOpenSettings = false) {
+    liveSessionId.current += 1;
+    clearLiveLocation();
+    setTracking(false);
+    setStage("ready");
+    setLocationBlocked(canOpenSettings);
+    setGpsStatus(message);
+  }
+
+  async function startTelegramGps(manager: TelegramLocationManager) {
+    const sessionId = beginLiveSession("Requesting Telegram location…");
+    const available = await initializeTelegramLocation(manager);
+    if (sessionId !== liveSessionId.current) return;
+    if (!available) {
+      stopUnavailableGps("Telegram location services are unavailable on this device");
+      return;
     }
+
+    const readLocation = async () => {
+      const location = await requestTelegramLocation(manager);
+      if (sessionId !== liveSessionId.current) return false;
+      if (!location) {
+        stopUnavailableGps("Allow location in Telegram to start a live run", true);
+        return false;
+      }
+      recordLocation({
+        latitude: location.latitude,
+        longitude: location.longitude,
+        accuracy: location.horizontal_accuracy,
+        timestamp: Date.now(),
+      }, "Telegram");
+      return true;
+    };
+
+    const receivedFirstFix = await readLocation();
+    if (receivedFirstFix && sessionId === liveSessionId.current && lastPoint.current) telegramPollId.current = window.setInterval(() => void readLocation(), 5000);
+  }
+
+  function startDeviceGps() {
+    if (!navigator.geolocation) {
+      stopUnavailableGps("This browser does not provide location services");
+      return;
+    }
+    const sessionId = beginLiveSession("Requesting device location…");
+    watchId.current = navigator.geolocation.watchPosition(
+      (position) => {
+        if (sessionId !== liveSessionId.current) return;
+        recordLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          timestamp: position.timestamp,
+        }, "Device");
+      },
+      (error) => {
+        if (sessionId === liveSessionId.current) stopUnavailableGps(error.code === error.PERMISSION_DENIED ? "Allow location access in your device settings to run live" : "GPS signal unavailable — move outdoors and try again");
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
+    );
+  }
+
+  function startRun() {
+    clearLiveLocation();
+    if (trackingMode === "live") {
+      const manager = getTelegramLocationManager();
+      if (manager) {
+        telegramLocationManager.current = manager;
+        void startTelegramGps(manager);
+      } else {
+        startDeviceGps();
+      }
+      return;
+    }
+    setSeconds(0);
+    setDistance(0);
+    lastPoint.current = null;
+    liveSessionId.current += 1;
+    setStage("tracking");
+    setTracking(true);
+    setGpsStatus("Simulated route active");
   }
 
   function stopRun() {
+    liveSessionId.current += 1;
     setTracking(false);
-    if (watchId.current !== null && navigator.geolocation) navigator.geolocation.clearWatch(watchId.current);
-    watchId.current = null;
+    clearLiveLocation();
+    if (trackingMode === "live" && !lastPoint.current) {
+      setStage("ready");
+      return;
+    }
     lastPoint.current = null;
     setSavedRuns((runs) => [{ distance, seconds, mode: trackingMode, proofId: `RUN-${Date.now().toString(36).toUpperCase()}` }, ...runs]);
     setRewardStatus("checking");
@@ -229,8 +336,8 @@ function RunnerApp() {
       {tab === "run" && <>
       <div className="start-panel quick-run-panel">
         <div><span className="eyebrow">QUICK RUN</span><h3>Track a run. No campaign signup.</h3><p>Location is used only while this Mini App session is active. After verification, raw route points are discarded; the app keeps a compact activity receipt.</p></div>
-        <div className="mode-toggle"><button className={trackingMode === "live" ? "active" : ""} onClick={() => setTrackingMode("live")}><b>Live GPS</b><span>Device location</span></button><button className={trackingMode === "demo" ? "active" : ""} onClick={() => setTrackingMode("demo")}><b>Demo route</b><span>Time-compressed</span></button></div>
-        <button className="button button-primary start-run" onClick={startRun}>Start quick run <span>→</span></button>
+        <div className="mode-toggle"><button className={trackingMode === "live" ? "active" : ""} onClick={() => setTrackingMode("live")}><b>Live GPS</b><span>Telegram or device GPS</span></button><button className={trackingMode === "demo" ? "active" : ""} onClick={() => setTrackingMode("demo")}><b>Demo route</b><span>Time-compressed</span></button></div>
+        <div className="gps-start-actions">{trackingMode === "live" && <p className="gps-access-note" role="status">{gpsStatus}{locationBlocked && telegramLocationManager.current && <button className="text-button" onClick={() => telegramLocationManager.current?.openSettings()}>Open Telegram settings</button>}</p>}<button className="button button-primary start-run" onClick={startRun}>{trackingMode === "live" ? "Enable GPS & start" : "Start quick run"} <span>→</span></button></div>
       </div>
       <div className="campaign-feature">
         <div className="campaign-art"><span className="globe-ring ring-a" /><span className="globe-ring ring-b" /><strong>5K</strong><small>GLOBAL WEEK</small></div>

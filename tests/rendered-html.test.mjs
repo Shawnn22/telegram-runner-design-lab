@@ -35,6 +35,13 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /Approve demo transaction/i);
   assert.match(page, /Demo boundary/i);
   assert.match(page, /navigator\.geolocation\.watchPosition/);
+  assert.match(page, /LocationManager/);
+  assert.match(page, /Open Telegram settings/);
+  const telegramLocation = await readFile(new URL("../app/telegram-location.ts", import.meta.url), "utf8");
+  assert.match(telegramLocation, /getLocation/);
+  assert.match(telegramLocation, /openSettings/);
+  const layout = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8");
+  assert.match(layout, /telegram-web-app\.js/);
   assert.match(page, /Activities saved/i);
   assert.match(page, /Quick Run/i);
   assert.match(page, /No campaign signup/i);
