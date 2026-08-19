@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   getTelegramLocationManager,
+  initializeTelegramWebApp,
   initializeTelegramLocation,
   requestTelegramLocation,
   type TelegramLocationManager,
@@ -60,6 +61,14 @@ function Badge({ children, tone = "blue" }: { children: React.ReactNode; tone?: 
 
 export default function Home() {
   const [surface, setSurface] = useState<Surface>("home");
+  const [telegramSession, setTelegramSession] = useState(false);
+
+  useEffect(() => {
+    const initializeId = window.setTimeout(() => {
+      setTelegramSession(initializeTelegramWebApp());
+    }, 0);
+    return () => window.clearTimeout(initializeId);
+  }, []);
 
   return (
     <main className="app-shell">
@@ -73,7 +82,7 @@ export default function Home() {
           <button className={surface === "runner" ? "active" : ""} onClick={() => setSurface("runner")}>Runner app</button>
           <button className={surface === "admin" ? "active" : ""} onClick={() => setSurface("admin")}>Project console</button>
         </nav>
-        <div className="demo-pill"><span /> Hybrid demo</div>
+        <div className={`demo-pill ${telegramSession ? "telegram-session" : ""}`}><span /> {telegramSession ? "Telegram session" : "Browser preview"}</div>
       </header>
 
       {surface === "home" && <HomeScreen onOpen={setSurface} />}

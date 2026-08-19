@@ -13,20 +13,34 @@ export type TelegramLocationManager = {
   openSettings: () => TelegramLocationManager;
 };
 
+export type TelegramWebApp = {
+  LocationManager?: TelegramLocationManager;
+  initData?: string;
+  ready?: () => void;
+  expand?: () => void;
+};
+
 declare global {
   interface Window {
     Telegram?: {
-      WebApp?: {
-        LocationManager?: TelegramLocationManager;
-        ready?: () => void;
-        expand?: () => void;
-      };
+      WebApp?: TelegramWebApp;
     };
   }
 }
 
+export function getTelegramWebApp() {
+  return window.Telegram?.WebApp ?? null;
+}
+
+export function initializeTelegramWebApp() {
+  const webApp = getTelegramWebApp();
+  webApp?.ready?.();
+  webApp?.expand?.();
+  return Boolean(webApp?.initData);
+}
+
 export function getTelegramLocationManager() {
-  return window.Telegram?.WebApp?.LocationManager ?? null;
+  return getTelegramWebApp()?.LocationManager ?? null;
 }
 
 export function initializeTelegramLocation(manager: TelegramLocationManager) {

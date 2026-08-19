@@ -32,6 +32,10 @@ npm run build
 npm test
 ```
 
+## Test inside Telegram
+
+Follow [TELEGRAM_TEST_SETUP.md](./TELEGRAM_TEST_SETUP.md) to attach the deployed URL to a bot's Main Mini App and Menu Button. A direct browser tab is only a browser preview; test the live GPS flow after opening the app from the bot inside the Telegram mobile app.
+
 ## Product documents
 
 - `PRD_DEMO.md`
