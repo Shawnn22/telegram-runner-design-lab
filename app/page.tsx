@@ -135,11 +135,11 @@ function RunnerApp() {
   const [tab, setTab] = useState<RunnerTab>("run");
   const [wallet, setWallet] = useState(false);
   const [walletSheet, setWalletSheet] = useState(false);
-  const [trackingMode, setTrackingMode] = useState<"demo" | "live">("demo");
+  const [trackingMode, setTrackingMode] = useState<"demo" | "live">("live");
   const [tracking, setTracking] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [distance, setDistance] = useState(0);
-  const [gpsStatus, setGpsStatus] = useState("Ready");
+  const [gpsStatus, setGpsStatus] = useState("Ready to request live GPS");
   const [locationBlocked, setLocationBlocked] = useState(false);
   const [savedRuns, setSavedRuns] = useState<SavedRun[]>([]);
   const [rewardStatus, setRewardStatus] = useState<RewardStatus>("checking");
@@ -284,6 +284,13 @@ function RunnerApp() {
     setGpsStatus("Simulated route active");
   }
 
+  function selectTrackingMode(mode: "demo" | "live") {
+    clearLiveLocation();
+    setTrackingMode(mode);
+    setLocationBlocked(false);
+    setGpsStatus(mode === "live" ? "Ready to request live GPS" : "Demo route is intentionally simulated");
+  }
+
   function stopRun() {
     liveSessionId.current += 1;
     setTracking(false);
@@ -306,9 +313,9 @@ function RunnerApp() {
     return (
       <section className="runner-surface tracking-surface">
         <div className="runner-topline"><button className="text-button" onClick={stopRun}>End session</button><Badge tone={trackingMode === "live" ? "green" : "amber"}>{trackingMode === "live" ? "LIVE GPS" : "DEMO ROUTE"}</Badge></div>
-        <div className="tracking-map">
+          <div className={`tracking-map ${trackingMode === "live" ? "live-map" : "demo-map"}`}>
           <div className="map-grid" />
-          <span className="track-line track-one" /><span className="track-line track-two" /><span className="track-line track-three" /><span className="track-line track-four" />
+          {trackingMode === "demo" && <><span className="track-line track-one" /><span className="track-line track-two" /><span className="track-line track-three" /><span className="track-line track-four" /></>}
           <span className="runner-pulse"><i /></span>
           <div className="gps-chip">● {gpsStatus}</div>
         </div>
@@ -316,7 +323,7 @@ function RunnerApp() {
           <div className="tracking-primary"><strong>{distance.toFixed(2)}</strong><span>KILOMETERS</span></div>
           <div className="tracking-secondary"><div><strong>{formatTime(seconds)}</strong><span>TIME</span></div><div><strong>{pace ? `${Math.floor(pace)}:${Math.round((pace % 1) * 60).toString().padStart(2, "0")}` : "--:--"}</strong><span>AVG PACE /KM</span></div></div>
           <div className="goal-progress"><span style={{ width: `${Math.min(100, (distance / campaign.goal) * 100)}%` }} /><b>{Math.min(100, Math.round((distance / campaign.goal) * 100))}% toward an available 5K reward</b></div>
-          <button className="stop-button" onClick={stopRun}><span>■</span> Hold to finish</button>
+          <button className="stop-button" onClick={stopRun}><span>■</span> Finish run</button>
         </div>
       </section>
     );
@@ -336,7 +343,7 @@ function RunnerApp() {
       {tab === "run" && <>
       <div className="start-panel quick-run-panel">
         <div><span className="eyebrow">QUICK RUN</span><h3>Track a run. No campaign signup.</h3><p>Location is used only while this Mini App session is active. After verification, raw route points are discarded; the app keeps a compact activity receipt.</p></div>
-        <div className="mode-toggle"><button className={trackingMode === "live" ? "active" : ""} onClick={() => setTrackingMode("live")}><b>Live GPS</b><span>Telegram or device GPS</span></button><button className={trackingMode === "demo" ? "active" : ""} onClick={() => setTrackingMode("demo")}><b>Demo route</b><span>Time-compressed</span></button></div>
+        <div className="mode-toggle"><button className={trackingMode === "live" ? "active" : ""} onClick={() => selectTrackingMode("live")}><b>Live GPS</b><span>Telegram or device GPS</span></button><button className={trackingMode === "demo" ? "active" : ""} onClick={() => selectTrackingMode("demo")}><b>Demo route</b><span>Time-compressed</span></button></div>
         <div className="gps-start-actions">{trackingMode === "live" && <p className="gps-access-note" role="status">{gpsStatus}{locationBlocked && telegramLocationManager.current && <button className="text-button" onClick={() => telegramLocationManager.current?.openSettings()}>Open Telegram settings</button>}</p>}<button className="button button-primary start-run" onClick={startRun}>{trackingMode === "live" ? "Enable GPS & start" : "Start quick run"} <span>→</span></button></div>
       </div>
       <div className="campaign-feature">

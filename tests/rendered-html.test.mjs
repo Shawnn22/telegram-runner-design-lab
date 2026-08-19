@@ -37,6 +37,9 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /navigator\.geolocation\.watchPosition/);
   assert.match(page, /LocationManager/);
   assert.match(page, /Open Telegram settings/);
+  assert.match(page, /useState<"demo" \| "live">\("live"\)/);
+  assert.match(page, /trackingMode === "demo" &&/);
+  assert.match(page, /Finish run/);
   const telegramLocation = await readFile(new URL("../app/telegram-location.ts", import.meta.url), "utf8");
   assert.match(telegramLocation, /getLocation/);
   assert.match(telegramLocation, /openSettings/);
