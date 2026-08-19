@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
-async function render() {
+async function render(path = "/") {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
   const { default: worker } = await import(workerUrl.href);
 
   return worker.fetch(
-    new Request("http://localhost/", { headers: { accept: "text/html" } }),
+    new Request(`http://localhost${path}`, { headers: { accept: "text/html" } }),
     { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
     { waitUntil() {}, passThroughOnException() {} },
   );
@@ -23,9 +23,18 @@ test("server-renders the Telegram Runner demo shell", async () => {
   assert.match(html, /Telegram Runner — Move communities onchain/i);
   assert.match(html, /Move communities/i);
   assert.match(html, /Reward real effort/i);
-  assert.match(html, /Project console/i);
-  assert.match(html, /Runner app/i);
+  assert.match(html, /Quick Run/i);
+  assert.doesNotMatch(html, /Project console/i);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/i);
+});
+
+test("serves project submission outside the runner entry", async () => {
+  const response = await render("/project");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /PROJECT PORTAL/i);
+  assert.match(html, /Project verification/i);
+  assert.match(html, /Open runner app/i);
 });
 
 test("keeps simulated integrations explicit", async () => {
@@ -45,6 +54,8 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /Your live GPS location/);
   assert.match(page, /setLivePoint\(next\)/);
   assert.match(page, /Finish run/);
+  assert.match(page, /<RunnerApp \/>/);
+  assert.match(page, /export function AdminConsole/);
   const telegramLocation = await readFile(new URL("../app/telegram-location.ts", import.meta.url), "utf8");
   assert.match(telegramLocation, /getLocation/);
   assert.match(telegramLocation, /openSettings/);

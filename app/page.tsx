@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   getTelegramLocationManager,
   initializeTelegramWebApp,
@@ -9,7 +10,6 @@ import {
   type TelegramLocationManager,
 } from "./telegram-location";
 
-type Surface = "home" | "runner" | "admin";
 type RunnerStage = "ready" | "tracking";
 type RunnerTab = "run" | "activity" | "rewards";
 type RewardStatus = "checking" | "eligible" | "more-running" | "claimed";
@@ -70,7 +70,6 @@ function Badge({ children, tone = "blue" }: { children: React.ReactNode; tone?: 
 }
 
 export default function Home() {
-  const [surface, setSurface] = useState<Surface>("home");
   const [telegramSession, setTelegramSession] = useState(false);
 
   useEffect(() => {
@@ -83,69 +82,16 @@ export default function Home() {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <button className="brand" onClick={() => setSurface("home")} aria-label="Telegram Runner home">
+        <Link className="brand" href="/" aria-label="Telegram Runner home">
           <span className="brand-mark">R</span>
           <span>RUNNER</span>
           <Badge tone="neutral">TON</Badge>
-        </button>
-        <nav className="topnav" aria-label="Demo areas">
-          <button className={surface === "runner" ? "active" : ""} onClick={() => setSurface("runner")}>Runner app</button>
-          <button className={surface === "admin" ? "active" : ""} onClick={() => setSurface("admin")}>Project console</button>
-        </nav>
+        </Link>
+        <div className="user-flow-label"><b>QUICK RUN</b><span>Run → save → check rewards</span></div>
         <div className={`demo-pill ${telegramSession ? "telegram-session" : ""}`}><span /> {telegramSession ? "Telegram session" : "Browser preview"}</div>
       </header>
-
-      {surface === "home" && <HomeScreen onOpen={setSurface} />}
-      {surface === "runner" && <RunnerApp />}
-      {surface === "admin" && <AdminConsole />}
+      <RunnerApp />
     </main>
-  );
-}
-
-function HomeScreen({ onOpen }: { onOpen: (surface: Surface) => void }) {
-  return (
-    <section className="home-screen">
-      <div className="hero-copy">
-        <Badge tone="green">IRL quests for the TON community</Badge>
-        <h1>Move communities.<br /><em>Reward real effort.</em></h1>
-        <p className="hero-lede">Turn airdrop campaigns into healthy action. Projects fund transparent reward pools. People run in the Telegram Mini App. Verified finishers claim on TON.</p>
-        <div className="hero-actions">
-          <button className="button button-primary" onClick={() => onOpen("runner")}>Open runner demo <span>→</span></button>
-          <button className="button button-secondary" onClick={() => onOpen("admin")}>Create a campaign</button>
-        </div>
-        <div className="trust-row">
-          <div><strong>No NFT shoes</strong><span>No buy-in to start moving</span></div>
-          <div><strong>Funded on TON</strong><span>Pool visible before the run</span></div>
-          <div><strong>Foreground GPS</strong><span>Count only after Start Run</span></div>
-        </div>
-      </div>
-
-      <div className="hero-visual" aria-label="Campaign preview">
-        <div className="orbit orbit-one" />
-        <div className="orbit orbit-two" />
-        <div className="phone-card">
-          <div className="phone-head"><span>9:41</span><span>Telegram</span></div>
-          <div className="mini-map">
-            <span className="map-label map-label-a">START</span>
-            <span className="route-line line-one" />
-            <span className="route-line line-two" />
-            <span className="route-line line-three" />
-            <span className="route-dot dot-a" />
-            <span className="route-dot dot-b" />
-            <span className="map-label map-label-b">5K</span>
-          </div>
-          <div className="phone-content">
-            <Badge tone="green">Pool funded</Badge>
-            <h3>{campaign.name}</h3>
-            <p>{campaign.sponsor} · {campaign.duration}</p>
-            <div className="phone-stats"><div><b>5.00</b><span>KM GOAL</span></div><div><b>1K</b><span>TON POOL</span></div></div>
-            <button className="button button-primary button-full" onClick={() => onOpen("runner")}>Start a run <span>→</span></button>
-          </div>
-        </div>
-        <div className="floating-card float-top"><span className="status-icon">✓</span><div><b>Escrow verified</b><small>EQC4…9xTon</small></div></div>
-        <div className="floating-card float-bottom"><span className="status-icon status-lime">↗</span><div><b>1,842 runners</b><small>67 countries</small></div></div>
-      </div>
-    </section>
   );
 }
 
@@ -409,7 +355,7 @@ function RewardsScreen({ savedRuns, verifiedDistance, rewardStatus, wallet, onCh
   return <div className="rewards-view"><div className="section-heading"><div><Badge tone={rewardStatus === "checking" ? "amber" : rewardStatus === "eligible" ? "green" : "neutral"}>{rewardStatus === "checking" ? "MATCHING" : rewardStatus === "eligible" ? "ELIGIBLE" : "MORE ACTIVITY NEEDED"}</Badge><h1>Reward check</h1><p>Your saved activities are being matched with campaign rules now—not with a campaign you joined before running.</p></div></div><div className="reward-check-card"><div className="check-orbit"><span>{rewardStatus === "eligible" ? "✓" : rewardStatus === "more-running" ? "5K" : "…"}</span></div><div className="check-content"><div className="campaign-badges"><Badge tone="green">POOL FUNDED</Badge><Badge tone="neutral">{campaign.pool}</Badge></div><h2>{campaign.name}</h2><p>{rewardStatus === "checking" ? "We are checking the saved activity receipts against this open campaign rule. Your activity history is unchanged." : rewardStatus === "eligible" ? "Your combined verified distance meets the rule. Connect a wallet only when you are ready to claim." : `${Math.max(0, campaign.goal - verifiedDistance).toFixed(2)} km remains before this completion-pool reward can be claimed.`}</p><div className="reward-distance"><span>VERIFIED THIS WEEK</span><b>{verifiedDistance.toFixed(2)} <small>/ {campaign.goal.toFixed(2)} KM</small></b><div><i style={{ width: `${Math.min(100, (verifiedDistance / campaign.goal) * 100)}%` }} /></div></div><div className="check-timeline"><div className="done"><span>✓</span><p><b>{savedRuns.length} activity {savedRuns.length === 1 ? "receipt" : "receipts"} saved</b><small>{verifiedDistance.toFixed(2)} km total, no routes stored</small></p></div><div className={rewardStatus === "checking" ? "active" : "done"}><span>{rewardStatus === "checking" ? "2" : "✓"}</span><p><b>GPS & session check</b><small>{rewardStatus === "checking" ? "Awaiting demo oracle" : "Passed demo checks"}</small></p></div><div className={rewardStatus === "eligible" || rewardStatus === "more-running" ? "done" : ""}><span>{rewardStatus === "checking" ? "3" : "✓"}</span><p><b>Campaign auto-match</b><small>{rewardStatus === "eligible" ? "Completion rule met" : rewardStatus === "more-running" ? "Goal not met yet" : "Waiting for review"}</small></p></div></div>{rewardStatus === "checking" && <button className="button button-primary" onClick={onCheck}>Run demo eligibility check <span>→</span></button>}{rewardStatus === "eligible" && (wallet ? <button className="button button-primary" onClick={onClaim}>Claim demo reward <span>→</span></button> : <button className="button button-primary" onClick={onConnectWallet}>Connect wallet to claim <span>→</span></button>)}{rewardStatus === "more-running" && <button className="button button-primary" onClick={onRun}>Log another run <span>→</span></button>}</div></div>{!complete && rewardStatus !== "more-running" && <p className="simulation-note"><b>Demo note:</b> your combined activity is below the 5 km requirement. The matcher correctly keeps it out of the claim flow.</p>}</div>;
 }
 
-function AdminConsole() {
+export function AdminConsole() {
   const [verified, setVerified] = useState(false);
   const [step, setStep] = useState(0);
   const [funded, setFunded] = useState(false);

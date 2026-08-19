@@ -4,7 +4,7 @@ Hybrid fundraising demo for a Telegram Mini App that connects TON projects with 
 
 ## Demo flow
 
-### Project console
+### Project portal (`/project`)
 
 1. Approve a clearly labelled simulated KYB check.
 2. Configure a global completion campaign.
@@ -20,6 +20,11 @@ Hybrid fundraising demo for a Telegram Mini App that connects TON projects with 
 5. Connect the demo TON wallet only when an eligible reward is claimed.
 
 The UI labels every mocked integration. Production KYB, anti-cheat and TON settlement are not represented as complete.
+
+## Entry points
+
+- `/` — user-only runner flow: Quick Run → Activity → Reward check.
+- `/project` — separate portal for project KYB demo, campaign configuration and funding simulation. Do not use this URL as the bot's Mini App entry point.
 
 ## Local development
 
