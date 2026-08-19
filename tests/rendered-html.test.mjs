@@ -41,6 +41,9 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /Open Telegram settings/);
   assert.match(page, /useState<"demo" \| "live">\("live"\)/);
   assert.match(page, /trackingMode === "demo" &&/);
+  assert.match(page, /openstreetmap\.org\/export\/embed/);
+  assert.match(page, /Your live GPS location/);
+  assert.match(page, /setLivePoint\(next\)/);
   assert.match(page, /Finish run/);
   const telegramLocation = await readFile(new URL("../app/telegram-location.ts", import.meta.url), "utf8");
   assert.match(telegramLocation, /getLocation/);

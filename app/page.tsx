@@ -55,6 +55,16 @@ function formatTime(seconds: number) {
   return `${mins}:${secs}`;
 }
 
+function liveMapUrl(point: Point) {
+  const latitudeSpan = Math.max(0.003, Math.min(0.02, ((point.accuracy ?? 35) / 111_000) * 8));
+  const longitudeSpan = latitudeSpan / Math.max(0.3, Math.cos((point.latitude * Math.PI) / 180));
+  const west = point.longitude - longitudeSpan;
+  const east = point.longitude + longitudeSpan;
+  const south = point.latitude - latitudeSpan;
+  const north = point.latitude + latitudeSpan;
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${west.toFixed(6)}%2C${south.toFixed(6)}%2C${east.toFixed(6)}%2C${north.toFixed(6)}&layer=mapnik&marker=${point.latitude.toFixed(6)}%2C${point.longitude.toFixed(6)}`;
+}
+
 function Badge({ children, tone = "blue" }: { children: React.ReactNode; tone?: "blue" | "green" | "amber" | "neutral" }) {
   return <span className={`badge badge-${tone}`}>{children}</span>;
 }
@@ -148,6 +158,7 @@ function RunnerApp() {
   const [tracking, setTracking] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [distance, setDistance] = useState(0);
+  const [livePoint, setLivePoint] = useState<Point | null>(null);
   const [gpsStatus, setGpsStatus] = useState("Ready to request live GPS");
   const [locationBlocked, setLocationBlocked] = useState(false);
   const [savedRuns, setSavedRuns] = useState<SavedRun[]>([]);
@@ -196,6 +207,7 @@ function RunnerApp() {
     }
 
     lastPoint.current = next;
+    setLivePoint(next);
     setGpsStatus(`${source} GPS · ±${Math.round(accuracy)}m`);
   }
 
@@ -203,6 +215,7 @@ function RunnerApp() {
     liveSessionId.current += 1;
     setSeconds(0);
     setDistance(0);
+    setLivePoint(null);
     lastPoint.current = null;
     setLocationBlocked(false);
     setStage("tracking");
@@ -286,6 +299,7 @@ function RunnerApp() {
     }
     setSeconds(0);
     setDistance(0);
+    setLivePoint(null);
     lastPoint.current = null;
     liveSessionId.current += 1;
     setStage("tracking");
@@ -309,6 +323,7 @@ function RunnerApp() {
       return;
     }
     lastPoint.current = null;
+    setLivePoint(null);
     setSavedRuns((runs) => [{ distance, seconds, mode: trackingMode, proofId: `RUN-${Date.now().toString(36).toUpperCase()}` }, ...runs]);
     setRewardStatus("checking");
     setStage("ready");
@@ -322,11 +337,14 @@ function RunnerApp() {
     return (
       <section className="runner-surface tracking-surface">
         <div className="runner-topline"><button className="text-button" onClick={stopRun}>End session</button><Badge tone={trackingMode === "live" ? "green" : "amber"}>{trackingMode === "live" ? "LIVE GPS" : "DEMO ROUTE"}</Badge></div>
-          <div className={`tracking-map ${trackingMode === "live" ? "live-map" : "demo-map"}`}>
+        <div className={`tracking-map ${trackingMode === "live" ? "live-map" : "demo-map"}`}>
           <div className="map-grid" />
+          {trackingMode === "live" && livePoint && <iframe className="live-map-frame" title="Your live GPS location" src={liveMapUrl(livePoint)} referrerPolicy="no-referrer" />}
+          {trackingMode === "live" && !livePoint && <div className="live-map-wait"><b>Locating you…</b><span>Map appears after the first accurate GPS fix.</span></div>}
           {trackingMode === "demo" && <><span className="track-line track-one" /><span className="track-line track-two" /><span className="track-line track-three" /><span className="track-line track-four" /></>}
           <span className="runner-pulse"><i /></span>
           <div className="gps-chip">● {gpsStatus}</div>
+          {trackingMode === "live" && livePoint && <a className="map-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>}
         </div>
         <div className="tracking-panel">
           <div className="tracking-primary"><strong>{distance.toFixed(2)}</strong><span>KILOMETERS</span></div>
