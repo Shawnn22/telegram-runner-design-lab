@@ -56,6 +56,10 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /Finish run/);
   assert.match(page, /<RunnerApp \/>/);
   assert.match(page, /export function AdminConsole/);
+  assert.match(page, /TODAY(?:'|&apos;)S QUICK RUN/);
+  assert.match(page, /Run → save → check rewards/);
+  assert.match(page, /Start live run/);
+  assert.match(page, /Private activity receipt/);
   const telegramLocation = await readFile(new URL("../app/telegram-location.ts", import.meta.url), "utf8");
   assert.match(telegramLocation, /getLocation/);
   assert.match(telegramLocation, /openSettings/);

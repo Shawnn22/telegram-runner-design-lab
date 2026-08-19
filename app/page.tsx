@@ -278,6 +278,8 @@ function RunnerApp() {
 
   const pace = distance > 0 ? Math.max(4, seconds / 60 / distance) : 0;
   const verifiedDistance = savedRuns.reduce((total, run) => total + run.distance, 0);
+  const weeklyProgress = Math.min(100, (verifiedDistance / campaign.goal) * 100);
+  const remainingDistance = Math.max(0, campaign.goal - verifiedDistance);
 
   if (stage === "tracking") {
     return (
@@ -305,7 +307,8 @@ function RunnerApp() {
   return (
     <section className="runner-surface">
       <div className="runner-header">
-        <div><Badge tone="blue">RUNNER · TON</Badge><h2>Move at your pace.</h2><p>Run first. Match rewards after.</p></div>
+        <div className="runner-welcome"><div className="runner-avatar">R</div><div><Badge tone="blue">RUNNER · TON</Badge><h2>{savedRuns.length ? "Keep your rhythm." : "Your run starts here."}</h2><p>{savedRuns.length ? `${savedRuns.length} activity ${savedRuns.length === 1 ? "receipt" : "receipts"} saved this week.` : "No signup. No wallet. Just move."}</p></div></div>
+        <div className="weekly-glance"><span>THIS WEEK</span><b>{verifiedDistance.toFixed(1)} <small>/ {campaign.goal} km</small></b><i><em style={{ width: `${weeklyProgress}%` }} /></i></div>
         <button className={`wallet-chip ${wallet ? "connected" : ""}`} onClick={() => setWalletSheet(true)}>{wallet ? "EQC4…91x · Connected" : "Connect TON wallet"}</button>
       </div>
       <nav className="runner-nav" aria-label="Runner sections">
@@ -314,10 +317,10 @@ function RunnerApp() {
         <button className={tab === "rewards" ? "active" : ""} onClick={() => setTab("rewards")}><i>✦</i>Rewards {savedRuns.length > 0 && rewardStatus !== "claimed" && <span>1</span>}</button>
       </nav>
       {tab === "run" && <>
+      <div className="run-journey" aria-label="How the runner flow works"><div className="active"><span>1</span><p><b>Track</b><small>Foreground GPS only</small></p></div><div><span>2</span><p><b>Save</b><small>Private activity receipt</small></p></div><div><span>3</span><p><b>Match</b><small>Rewards stay separate</small></p></div></div>
       <div className="start-panel quick-run-panel">
-        <div><span className="eyebrow">QUICK RUN</span><h3>Track a run. No campaign signup.</h3><p>Location is used only while this Mini App session is active. After verification, raw route points are discarded; the app keeps a compact activity receipt.</p></div>
-        <div className="mode-toggle"><button className={trackingMode === "live" ? "active" : ""} onClick={() => selectTrackingMode("live")}><b>Live GPS</b><span>Telegram or device GPS</span></button><button className={trackingMode === "demo" ? "active" : ""} onClick={() => selectTrackingMode("demo")}><b>Demo route</b><span>Time-compressed</span></button></div>
-        <div className="gps-start-actions">{trackingMode === "live" && <p className="gps-access-note" role="status">{gpsStatus}{locationBlocked && telegramLocationManager.current && <button className="text-button" onClick={() => telegramLocationManager.current?.openSettings()}>Open Telegram settings</button>}</p>}<button className="button button-primary start-run" onClick={startRun}>{trackingMode === "live" ? "Enable GPS & start" : "Start quick run"} <span>→</span></button></div>
+        <div className="start-copy"><span className="eyebrow">TODAY&apos;S QUICK RUN</span><h3>{remainingDistance ? `${remainingDistance.toFixed(1)} km to unlock this week.` : "Weekly goal complete."}</h3><p>No campaign signup. Use live GPS while this Mini App is open; we save a compact activity receipt after you finish — not your route.</p><div className="privacy-points"><span>⌖ Live location</span><span>◌ No route history</span></div></div>
+        <div className="start-control"><div className="mode-toggle"><button className={trackingMode === "live" ? "active" : ""} onClick={() => selectTrackingMode("live")}><i>⌖</i><b>Live GPS</b><span>Telegram or device</span></button><button className={trackingMode === "demo" ? "active" : ""} onClick={() => selectTrackingMode("demo")}><i>◷</i><b>Demo route</b><span>Time-compressed</span></button></div><div className="gps-start-actions">{trackingMode === "live" && <p className="gps-access-note" role="status"><span className="signal-dot" />{gpsStatus}{locationBlocked && telegramLocationManager.current && <button className="text-button" onClick={() => telegramLocationManager.current?.openSettings()}>Open Telegram settings</button>}</p>}<button className="button button-primary start-run" onClick={startRun}><span className="start-icon">⌖</span>{trackingMode === "live" ? "Start live run" : "Start quick run"} <span>→</span></button></div></div>
       </div>
       <div className="campaign-feature">
         <div className="campaign-art"><span className="globe-ring ring-a" /><span className="globe-ring ring-b" /><strong>5K</strong><small>GLOBAL WEEK</small></div>
