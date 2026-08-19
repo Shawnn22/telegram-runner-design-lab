@@ -13,11 +13,11 @@ Hybrid fundraising demo for a Telegram Mini App that connects TON projects with 
 
 ### Runner app
 
-1. Connect the demo TON wallet state.
-2. Join the sponsored campaign.
-3. Use live foreground GPS or a time-compressed demo route.
-4. Finish the run and save it to Activity.
-5. Open Rewards for the separate eligibility check and demo claim.
+1. Start a Quick Run without joining a campaign or connecting a wallet.
+2. Use live foreground GPS or a time-compressed demo route.
+3. Finish one or more runs; Activity retains only compact proof records, not route maps.
+4. Open Rewards to auto-match total verified distance against live campaign rules.
+5. Connect the demo TON wallet only when an eligible reward is claimed.
 
 The UI labels every mocked integration. Production KYB, anti-cheat and TON settlement are not represented as complete.
 
@@ -39,3 +39,4 @@ npm test
 - `RESEARCH_INDEX.md`
 - `research/2026-08-15-preliminary-product-feasibility.md`
 - `research/2026-08-15-product-decisions-and-demo-direction.md`
+- `research/2026-08-16-runner-app-market-and-post-run-rewards.md`

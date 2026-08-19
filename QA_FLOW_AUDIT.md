@@ -12,6 +12,7 @@ Ngày: 2026-08-16
 | Live GPS / Demo Route | Pass về code | `watchPosition` cho Live GPS, route mô phỏng có nhãn riêng. Cần thử máy thật trong Telegram trước production. |
 | Start / Stop session | Pass | Stop lưu activity rồi chuyển vào Activity. |
 | Activity history | Pass | Có empty state, summary và activity proof; không hiển thị/lưu route map sau session. |
+| Nhiều sessions trong campaign window | Pass về code | Mỗi session tạo proof riêng; quãng đường được cộng dồn trong Activity và Rewards. Dữ liệu chỉ tồn tại trong phiên demo hiện tại. |
 | Reward checking | Pass | Tách riêng trong Rewards và auto-match activity proof với campaign đang mở; có checking, eligible, more-running và claimed. |
 | Claim reward | Pass trong demo | Chỉ cần connect wallet sau eligibility; payout vẫn không phải TON testnet thật. |
 | Project KYB/KYC | Pass | Có sandbox approval rõ ràng. |
@@ -26,6 +27,6 @@ Ngày: 2026-08-16
 
 ## Ranh giới còn lại
 
-- Browser automation trực tiếp không chạy được trong môi trường hiện tại vì browser client module bị thiếu.
+- Browser automation trực tiếp chưa chạy được trong môi trường hiện tại: browser client cũ thiếu module và `agent-browser` CLI cũng không có. Build/rendered-HTML không thay thế cho QA trực quan trên Telegram.
 - Live GPS cần kiểm tra thủ công trên Telegram iOS và Android.
 - TON Connect, oracle và TON testnet claim hiện là mock có nhãn rõ ràng.
