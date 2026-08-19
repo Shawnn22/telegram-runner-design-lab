@@ -60,6 +60,8 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /Run → save → check rewards/);
   assert.match(page, /Start live run/);
   assert.match(page, /Private activity receipt/);
+  assert.match(page, /TonConnectUIProvider/);
+  assert.match(page, /tonconnect-manifest\.json/);
   const telegramLocation = await readFile(new URL("../app/telegram-location.ts", import.meta.url), "utf8");
   assert.match(telegramLocation, /getLocation/);
   assert.match(telegramLocation, /openSettings/);
@@ -67,6 +69,9 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(telegramLocation, /webApp\?\.expand/);
   const layout = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8");
   assert.match(layout, /telegram-web-app\.js/);
+  const manifest = await readFile(new URL("../public/tonconnect-manifest.json", import.meta.url), "utf8");
+  assert.match(manifest, /Telegram Runner/);
+  assert.match(manifest, /https:\/\/telegram-runner-demo\.shawn22222\.chatgpt\.site/);
   assert.match(page, /Activities saved/i);
   assert.match(page, /Quick Run/i);
   assert.match(page, /No campaign signup/i);

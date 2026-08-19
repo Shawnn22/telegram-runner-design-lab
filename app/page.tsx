@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { TonConnectButton, TonConnectUIProvider, useTonAddress, useTonWallet } from "@tonconnect/ui-react";
 import {
   getTelegramLocationManager,
   initializeTelegramWebApp,
@@ -36,6 +37,8 @@ const campaign = {
   participants: 1842,
   duration: "7 days",
 };
+
+const TON_CONNECT_MANIFEST = "https://telegram-runner-demo.shawn22222.chatgpt.site/tonconnect-manifest.json";
 
 function haversineKm(a: Point, b: Point) {
   const radius = 6371;
@@ -90,7 +93,9 @@ export default function Home() {
         <div className="user-flow-label"><b>QUICK RUN</b><span>Run → save → check rewards</span></div>
         <div className={`demo-pill ${telegramSession ? "telegram-session" : ""}`}><span /> {telegramSession ? "Telegram session" : "Browser preview"}</div>
       </header>
-      <RunnerApp />
+      <TonConnectUIProvider manifestUrl={TON_CONNECT_MANIFEST} actionsConfiguration={{ returnStrategy: "back" }}>
+        <RunnerApp />
+      </TonConnectUIProvider>
     </main>
   );
 }
@@ -98,7 +103,6 @@ export default function Home() {
 function RunnerApp() {
   const [stage, setStage] = useState<RunnerStage>("ready");
   const [tab, setTab] = useState<RunnerTab>("run");
-  const [wallet, setWallet] = useState(false);
   const [walletSheet, setWalletSheet] = useState(false);
   const [trackingMode, setTrackingMode] = useState<"demo" | "live">("live");
   const [tracking, setTracking] = useState(false);
@@ -114,6 +118,8 @@ function RunnerApp() {
   const telegramPollId = useRef<number | null>(null);
   const telegramLocationManager = useRef<TelegramLocationManager | null>(null);
   const liveSessionId = useRef(0);
+  const wallet = useTonWallet();
+  const walletAddress = useTonAddress();
 
   useEffect(() => {
     if (!tracking) return;
@@ -309,7 +315,7 @@ function RunnerApp() {
       <div className="runner-header">
         <div className="runner-welcome"><div className="runner-avatar">R</div><div><Badge tone="blue">RUNNER · TON</Badge><h2>{savedRuns.length ? "Keep your rhythm." : "Your run starts here."}</h2><p>{savedRuns.length ? `${savedRuns.length} activity ${savedRuns.length === 1 ? "receipt" : "receipts"} saved this week.` : "No signup. No wallet. Just move."}</p></div></div>
         <div className="weekly-glance"><span>THIS WEEK</span><b>{verifiedDistance.toFixed(1)} <small>/ {campaign.goal} km</small></b><i><em style={{ width: `${weeklyProgress}%` }} /></i></div>
-        <button className={`wallet-chip ${wallet ? "connected" : ""}`} onClick={() => setWalletSheet(true)}>{wallet ? "EQC4…91x · Connected" : "Connect TON wallet"}</button>
+        <button className={`wallet-chip ${wallet ? "connected" : ""}`} onClick={() => setWalletSheet(true)}>{wallet ? `${walletAddress.slice(0, 4)}…${walletAddress.slice(-4)} · Connected` : "Connect TON wallet"}</button>
       </div>
       <nav className="runner-nav" aria-label="Runner sections">
         <button className={tab === "run" ? "active" : ""} onClick={() => setTab("run")}><i>⌁</i>Run</button>
@@ -335,14 +341,14 @@ function RunnerApp() {
       <div className="transparency-card"><div className="status-icon">◈</div><div><b>Reward escrow is transparent</b><p>The sponsor-funded pool is locked before the campaign begins. A wallet is needed only when you choose to claim; GPS is verified offchain and payout rules execute on TON.</p></div><button>View contract ↗</button></div>
       </>}
       {tab === "activity" && <ActivityScreen savedRuns={savedRuns} onRewards={() => setTab("rewards")} onRun={() => setTab("run")} />}
-      {tab === "rewards" && <RewardsScreen savedRuns={savedRuns} verifiedDistance={verifiedDistance} rewardStatus={rewardStatus} wallet={wallet} onCheck={() => setRewardStatus(verifiedDistance >= campaign.goal * 0.95 ? "eligible" : "more-running")} onClaim={() => setRewardStatus("claimed")} onRun={() => setTab("run")} onConnectWallet={() => setWalletSheet(true)} />}
-      {walletSheet && <WalletSheet connected={wallet} onClose={() => setWalletSheet(false)} onConnect={() => { setWallet(true); setWalletSheet(false); }} />}
+      {tab === "rewards" && <RewardsScreen savedRuns={savedRuns} verifiedDistance={verifiedDistance} rewardStatus={rewardStatus} wallet={Boolean(wallet)} onCheck={() => setRewardStatus(verifiedDistance >= campaign.goal * 0.95 ? "eligible" : "more-running")} onClaim={() => setRewardStatus("claimed")} onRun={() => setTab("run")} onConnectWallet={() => setWalletSheet(true)} />}
+      {walletSheet && <WalletSheet connected={Boolean(wallet)} address={walletAddress} onClose={() => setWalletSheet(false)} />}
     </section>
   );
 }
 
-function WalletSheet({ connected, onClose, onConnect }: { connected: boolean; onClose: () => void; onConnect: () => void }) {
-  return <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="TON wallet connection"><div className="wallet-modal"><button className="modal-close" onClick={onClose} aria-label="Close wallet dialog">×</button><Badge tone="amber">SIMULATED WALLET</Badge><h2>{connected ? "Wallet connected" : "Connect a TON wallet"}</h2><p>{connected ? "EQC4…91x is ready for campaign eligibility and future reward claims." : "A real release will use TON Connect. This demo makes the connection state visible without requesting a wallet signature."}</p><div className="wallet-option"><span className="ton-logo">◆</span><div><b>TON Space</b><small>{connected ? "Connected to demo account" : "Recommended wallet"}</small></div>{connected ? <Badge tone="green">CONNECTED</Badge> : <button className="button button-primary" onClick={onConnect}>Connect demo</button>}</div><p className="simulation-note">No wallet keys, transaction or personal data are requested in this demo.</p></div></div>;
+function WalletSheet({ connected, address, onClose }: { connected: boolean; address: string; onClose: () => void }) {
+  return <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="TON wallet connection"><div className="wallet-modal"><button className="modal-close" onClick={onClose} aria-label="Close wallet dialog">×</button><Badge tone="blue">TON CONNECT · TESTNET</Badge><h2>{connected ? "Wallet connected" : "Connect a TON wallet"}</h2><p>{connected ? `${address.slice(0, 6)}…${address.slice(-6)} is connected through TON Connect.` : "Choose a testnet-capable TON wallet. Runner never sees or stores your private key."}</p><div className="wallet-option"><span className="ton-logo">◆</span><div><b>TON Connect</b><small>{connected ? "Wallet connection confirmed" : "Open your wallet to connect"}</small></div>{connected ? <Badge tone="green">CONNECTED</Badge> : <TonConnectButton />}</div><p className="simulation-note">Wallet connection is live. Claim stays disabled until the audited testnet escrow address and oracle proof endpoint are configured.</p></div></div>;
 }
 
 function ActivityScreen({ savedRuns, onRewards, onRun }: { savedRuns: SavedRun[]; onRewards: () => void; onRun: () => void }) {

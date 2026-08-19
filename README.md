@@ -19,7 +19,7 @@ Hybrid fundraising demo for a Telegram Mini App that connects TON projects with 
 4. Open Rewards to auto-match total verified distance against live campaign rules.
 5. Connect the demo TON wallet only when an eligible reward is claimed.
 
-The UI labels every mocked integration. Production KYB, anti-cheat and TON settlement are not represented as complete.
+Production KYB and anti-cheat are still pending. TON Connect wallet connection is live; the escrow contract and claim payload remain testnet configuration work, documented in `contracts/README.md`.
 
 ## Entry points
 
