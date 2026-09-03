@@ -65,10 +65,12 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /visibilitychange/);
   assert.match(page, /<RunnerApp \/>/);
   assert.match(page, /export function AdminConsole/);
-  assert.match(page, /TODAY(?:'|&apos;)S QUICK RUN/);
+  assert.match(page, /TODAY(?:'|&apos;)S RUN/);
+  assert.match(page, /Your pace\. Your moment/);
+  assert.match(page, /OPEN CHALLENGE/);
   assert.match(page, /Run → save → check rewards/);
   assert.match(page, /Start live run/);
-  assert.match(page, /Private activity receipt/);
+  assert.match(page, /Private receipt/);
   assert.match(page, /TonConnectUIProvider/);
   assert.match(page, /tonconnect-manifest\.json/);
   const telegramLocation = await readFile(new URL("../app/telegram-location.ts", import.meta.url), "utf8");
@@ -84,7 +86,7 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(manifest, /https:\/\/telegram-runner-demo\.shawn22222\.chatgpt\.site/);
   assert.match(page, /Activities saved/i);
   assert.match(page, /Quick Run/i);
-  assert.match(page, /No campaign signup/i);
+  assert.match(page, /Foreground only/i);
   assert.match(page, /Raw GPS points were discarded/i);
   assert.match(page, /Campaign auto-match/i);
   assert.match(page, /Several activity receipts can contribute/i);
