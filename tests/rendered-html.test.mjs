@@ -23,7 +23,7 @@ test("server-renders the Telegram Runner demo shell", async () => {
   assert.match(html, /Telegram Runner — Move communities onchain/i);
   assert.match(html, /Move communities/i);
   assert.match(html, /Reward real effort/i);
-  assert.match(html, /Quick Run/i);
+  assert.match(html, /RUNNING, REFINED/i);
   assert.doesNotMatch(html, /Project console/i);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/i);
 });
@@ -68,7 +68,7 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /TODAY(?:'|&apos;)S RUN/);
   assert.match(page, /Your pace\. Your moment/);
   assert.match(page, /OPEN CHALLENGE/);
-  assert.match(page, /Run → save → check rewards/);
+  assert.match(page, /Start → record → save privately/);
   assert.match(page, /Start live run/);
   assert.match(page, /Private receipt/);
   assert.match(page, /TonConnectUIProvider/);
@@ -83,9 +83,9 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(layout, /telegram-web-app\.js/);
   const manifest = await readFile(new URL("../public/tonconnect-manifest.json", import.meta.url), "utf8");
   assert.match(manifest, /Telegram Runner/);
-  assert.match(manifest, /https:\/\/telegram-runner-demo\.shawn22222\.chatgpt\.site/);
+  assert.match(manifest, /https:\/\/telegram-runner-design-lab\.shawn22222\.chatgpt\.site/);
   assert.match(page, /Activities saved/i);
-  assert.match(page, /Quick Run/i);
+  assert.match(page, /DESIGN LAB/i);
   assert.match(page, /Foreground only/i);
   assert.match(page, /Raw GPS points were discarded/i);
   assert.match(page, /Campaign auto-match/i);
@@ -93,6 +93,9 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /VERIFIED THIS WEEK/i);
   assert.match(page, /Run demo eligibility check/i);
   assert.match(page, /Connect a TON wallet/i);
-  const previewFiles = await readdir(new URL("../app/_sites-preview", import.meta.url));
+  const previewFiles = await readdir(new URL("../app/_sites-preview", import.meta.url)).catch((error) => {
+    if (error && error.code === "ENOENT") return [];
+    throw error;
+  });
   assert.deepEqual(previewFiles, []);
 });

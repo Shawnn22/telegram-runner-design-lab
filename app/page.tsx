@@ -38,7 +38,7 @@ const campaign = {
   duration: "7 days",
 };
 
-const TON_CONNECT_MANIFEST = "https://telegram-runner-demo.shawn22222.chatgpt.site/tonconnect-manifest.json";
+const TON_CONNECT_MANIFEST = "https://telegram-runner-design-lab.shawn22222.chatgpt.site/tonconnect-manifest.json";
 
 function haversineKm(a: Point, b: Point) {
   const radius = 6371;
@@ -83,14 +83,14 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="app-shell">
+    <main className="app-shell design-lab">
       <header className="topbar">
         <Link className="brand" href="/" aria-label="Telegram Runner home">
           <span className="brand-mark">R</span>
           <span>RUNNER</span>
-          <Badge tone="neutral">TON</Badge>
+          <Badge tone="neutral">TON</Badge><span className="lab-signal">DESIGN LAB</span>
         </Link>
-        <div className="user-flow-label"><b>QUICK RUN</b><span>Run → save → check rewards</span></div>
+        <div className="user-flow-label"><b>RUNNING, REFINED</b><span>Start → record → save privately</span></div>
         <div className={`demo-pill ${telegramSession ? "telegram-session" : ""}`}><span /> {telegramSession ? "Telegram session" : "Browser preview"}</div>
       </header>
       <TonConnectUIProvider manifestUrl={TON_CONNECT_MANIFEST} actionsConfiguration={{ returnStrategy: "back" }}>
