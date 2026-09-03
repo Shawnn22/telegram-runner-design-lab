@@ -87,6 +87,11 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /Activities saved/i);
   assert.match(page, /DESIGN LAB/i);
   assert.match(page, /Foreground only/i);
+  assert.match(page, /RUN_STORAGE_KEY/);
+  assert.match(page, /localStorage/);
+  assert.match(page, /clearRunHistory/);
+  assert.match(page, /Personal run target/);
+  assert.match(page, /TODAY(?:'|&apos;)S PLAN/);
   assert.match(page, /Raw GPS points were discarded/i);
   assert.match(page, /Campaign auto-match/i);
   assert.match(page, /Several activity receipts can contribute/i);

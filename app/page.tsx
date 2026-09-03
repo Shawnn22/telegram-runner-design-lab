@@ -39,6 +39,7 @@ const campaign = {
 };
 
 const TON_CONNECT_MANIFEST = "https://telegram-runner-design-lab.shawn22222.chatgpt.site/tonconnect-manifest.json";
+const RUN_STORAGE_KEY = "telegram-runner-design-lab.runs.v1";
 
 function haversineKm(a: Point, b: Point) {
   const radius = 6371;
@@ -116,6 +117,8 @@ function RunnerApp() {
   const [gpsStatus, setGpsStatus] = useState("Ready to request live GPS");
   const [locationBlocked, setLocationBlocked] = useState(false);
   const [savedRuns, setSavedRuns] = useState<SavedRun[]>([]);
+  const [hasLoadedRuns, setHasLoadedRuns] = useState(false);
+  const [personalTarget, setPersonalTarget] = useState(5);
   const [rewardStatus, setRewardStatus] = useState<RewardStatus>("checking");
   const lastPoint = useRef<Point | null>(null);
   const watchId = useRef<number | null>(null);
@@ -135,6 +138,30 @@ function RunnerApp() {
   }, [tracking, trackingMode, gpsLocked]);
 
   useEffect(() => () => clearLiveLocation(), []);
+
+  useEffect(() => {
+    const restoreId = window.setTimeout(() => {
+      try {
+        const stored = window.localStorage.getItem(RUN_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            setSavedRuns(parsed.filter((run): run is SavedRun => Boolean(run && typeof run.distance === "number" && typeof run.seconds === "number" && typeof run.proofId === "string")));
+          }
+        }
+      } catch {
+        // A private local history is optional. A malformed value never blocks running.
+      } finally {
+        setHasLoadedRuns(true);
+      }
+    }, 0);
+    return () => window.clearTimeout(restoreId);
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedRuns) return;
+    window.localStorage.setItem(RUN_STORAGE_KEY, JSON.stringify(savedRuns));
+  }, [hasLoadedRuns, savedRuns]);
 
   function clearLiveLocation() {
     if (watchId.current !== null && navigator.geolocation) navigator.geolocation.clearWatch(watchId.current);
@@ -312,6 +339,12 @@ function RunnerApp() {
     setFinishArmed(false);
   }
 
+  function clearRunHistory() {
+    if (!window.confirm("Clear the saved activity summaries on this device? This cannot be undone.")) return;
+    setSavedRuns([]);
+    setRewardStatus("checking");
+  }
+
   function pauseRun(reason = "Paused") {
     if (!tracking) return;
     liveSessionId.current += 1;
@@ -345,6 +378,7 @@ function RunnerApp() {
   const verifiedDistance = savedRuns.reduce((total, run) => total + run.distance, 0);
   const weeklyProgress = Math.min(100, (verifiedDistance / campaign.goal) * 100);
   const remainingDistance = Math.max(0, campaign.goal - verifiedDistance);
+  const latestSavedRun = savedRuns[0] ?? null;
 
   if (stage === "summary" && latestRun) {
     return <RunSummary run={latestRun} onContinue={() => { setLatestRun(null); setStage("ready"); setTab("run"); }} onActivity={() => { setLatestRun(null); setStage("ready"); setTab("activity"); }} onRewards={() => { setLatestRun(null); setStage("ready"); setTab("rewards"); }} />;
@@ -386,9 +420,14 @@ function RunnerApp() {
         <button className={tab === "rewards" ? "active" : ""} onClick={() => setTab("rewards")}><i>✦</i>Rewards {savedRuns.length > 0 && rewardStatus !== "claimed" && <span>1</span>}</button>
       </nav>
       {tab === "run" && <>
+      <section className="run-command-center" aria-label="Your running overview">
+        <div className="command-distance"><span>THIS WEEK</span><strong>{verifiedDistance.toFixed(2)}</strong><small>KM RECORDED</small><i><em style={{ width: weeklyProgress + "%" }} /></i></div>
+        <div className="command-plan"><div><span>TODAY&apos;S PLAN</span><b>{personalTarget}K {personalTarget === 2 ? "easy reset" : personalTarget === 5 ? "steady run" : "long effort"}</b><small>{latestSavedRun ? "Last receipt · " + latestSavedRun.distance.toFixed(2) + " km" : "Choose a target, then start when ready."}</small></div><div className="target-pills" role="group" aria-label="Personal run target">{[2, 5, 10].map((target) => <button key={target} className={personalTarget === target ? "active" : ""} onClick={() => setPersonalTarget(target)}>{target}K</button>)}</div></div>
+        <div className="command-trust"><span>RUNNER PROMISE</span><b>GPS only while you run</b><small>Route points are discarded after saving.</small></div>
+      </section>
       <div className="run-journey" aria-label="How the runner flow works"><span className="journey-live"><i /> Live GPS session</span><span>Save private receipt</span><span>Check rewards later</span></div>
       <div className="start-panel quick-run-panel">
-        <div className="start-copy"><div className="ready-orbit"><i /><i /><span>R</span></div><span className="eyebrow">TODAY&apos;S RUN</span><h3>{remainingDistance ? "Your pace. Your moment." : "You finished the week strong."}</h3><p>{remainingDistance ? `${remainingDistance.toFixed(1)} km remains toward this week’s 5K. Start when your GPS is ready.` : "Your weekly goal is complete. Keep the streak going with another easy run."}</p><div className="run-intent"><span><b>Foreground only</b><small>We pause when Telegram closes</small></span><span><b>Private receipt</b><small>Route points are discarded</small></span></div></div>
+        <div className="start-copy"><div className="ready-orbit"><i /><i /><span>R</span></div><span className="eyebrow">TODAY&apos;S RUN</span><h3>{remainingDistance ? "Your pace. Your moment." : "You finished the week strong."}</h3><p>{remainingDistance ? `${remainingDistance.toFixed(1)} km remains toward this week’s 5K. Your personal ${personalTarget}K plan is ready when GPS is ready.` : "Your weekly goal is complete. Keep the streak going with another easy run."}</p><div className="run-intent"><span><b>Foreground only</b><small>We pause when Telegram closes</small></span><span><b>Private receipt</b><small>Route points are discarded</small></span></div></div>
         <div className="start-control"><div className="gps-readiness"><span className="gps-dot" /><div><b>{trackingMode === "live" ? "GPS will check when you start" : "Demo route ready"}</b><small>{trackingMode === "live" ? "Telegram first, then device GPS automatically" : "For UI testing only"}</small></div></div><div className="mode-toggle"><button className={trackingMode === "live" ? "active" : ""} onClick={() => selectTrackingMode("live")}><i>⌖</i><b>Live GPS</b><span>Telegram or device</span></button><button className={trackingMode === "demo" ? "active" : ""} onClick={() => selectTrackingMode("demo")}><i>◷</i><b>Demo route</b><span>Time-compressed</span></button></div><div className="gps-start-actions">{trackingMode === "live" && <p className="gps-access-note" role="status"><span className="signal-dot" />{gpsStatus}{locationBlocked && telegramLocationManager.current && <button className="text-button" onClick={() => telegramLocationManager.current?.openSettings()}>Open Telegram settings</button>}</p>}<button className="button button-primary start-run" onClick={startRun}><span className="start-icon">⌖</span>{trackingMode === "live" ? "Start live run" : "Start quick run"} <span>→</span></button></div></div>
       </div>
       <div className="section-kicker"><span>OPEN CHALLENGE</span><small>Rewards are optional. Your run is the main event.</small></div><div className="campaign-feature">
@@ -403,7 +442,7 @@ function RunnerApp() {
       </div>
       <div className="transparency-card"><div className="status-icon">◈</div><div><b>Reward escrow is transparent</b><p>The sponsor-funded pool is locked before the campaign begins. A wallet is needed only when you choose to claim; GPS is verified offchain and payout rules execute on TON.</p></div><button>View contract ↗</button></div>
       </>}
-      {tab === "activity" && <ActivityScreen savedRuns={savedRuns} onRewards={() => setTab("rewards")} onRun={() => setTab("run")} />}
+      {tab === "activity" && <ActivityScreen savedRuns={savedRuns} onRewards={() => setTab("rewards")} onRun={() => setTab("run")} onClear={clearRunHistory} />}
       {tab === "rewards" && <RewardsScreen savedRuns={savedRuns} verifiedDistance={verifiedDistance} rewardStatus={rewardStatus} wallet={Boolean(wallet)} onCheck={() => setRewardStatus(verifiedDistance >= campaign.goal * 0.95 ? "eligible" : "more-running")} onClaim={() => setRewardStatus("claimed")} onRun={() => setTab("run")} onConnectWallet={() => setWalletSheet(true)} />}
       {walletSheet && <WalletSheet connected={Boolean(wallet)} address={walletAddress} onClose={() => setWalletSheet(false)} />}
     </section>
@@ -419,10 +458,10 @@ function WalletSheet({ connected, address, onClose }: { connected: boolean; addr
   return <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="TON wallet connection"><div className="wallet-modal"><button className="modal-close" onClick={onClose} aria-label="Close wallet dialog">×</button><Badge tone="blue">TON CONNECT · TESTNET</Badge><h2>{connected ? "Wallet connected" : "Connect a TON wallet"}</h2><p>{connected ? `${address.slice(0, 6)}…${address.slice(-6)} is connected through TON Connect.` : "Choose a testnet-capable TON wallet. Runner never sees or stores your private key."}</p><div className="wallet-option"><span className="ton-logo">◆</span><div><b>TON Connect</b><small>{connected ? "Wallet connection confirmed" : "Open your wallet to connect"}</small></div>{connected ? <Badge tone="green">CONNECTED</Badge> : <TonConnectButton />}</div><p className="simulation-note">Wallet connection is live. Claim stays disabled until the audited testnet escrow address and oracle proof endpoint are configured.</p></div></div>;
 }
 
-function ActivityScreen({ savedRuns, onRewards, onRun }: { savedRuns: SavedRun[]; onRewards: () => void; onRun: () => void }) {
+function ActivityScreen({ savedRuns, onRewards, onRun, onClear }: { savedRuns: SavedRun[]; onRewards: () => void; onRun: () => void; onClear: () => void }) {
   if (savedRuns.length === 0) return <div className="empty-state"><div className="empty-icon">↗</div><Badge tone="neutral">NO ACTIVITIES YET</Badge><h2>Your run history will live here.</h2><p>Start a foreground GPS session whenever you want. Saving a run never guarantees a reward—eligibility is checked separately.</p><button className="button button-primary" onClick={onRun}>Start a quick run <span>→</span></button></div>;
   const weeklyDistance = savedRuns.reduce((total, run) => total + run.distance, 0);
-  return <div className="activity-view"><div className="section-heading"><div><Badge tone="green">ACTIVITIES SAVED</Badge><h1>Every run stays on your record.</h1><p>Several activity receipts can contribute to an open weekly rule. Only summaries and proof IDs are retained—never a persistent route map.</p></div><button className="button button-primary" onClick={onRewards}>View matching rewards <span>→</span></button></div><div className="weekly-progress"><div><span className="eyebrow">THIS WEEK</span><b>{weeklyDistance.toFixed(2)} <small>/ {campaign.goal.toFixed(2)} KM</small></b><p>{savedRuns.length} verified activity {savedRuns.length === 1 ? "receipt" : "receipts"} ready for matching.</p></div><div className="weekly-progress-bar"><span style={{ width: `${Math.min(100, (weeklyDistance / campaign.goal) * 100)}%` }} /></div></div><div className="activity-list">{savedRuns.map((savedRun, index) => <div className="activity-card" key={savedRun.proofId}><div className="privacy-receipt"><span className="receipt-lock">⌁</span><b>Private by default</b><small>NO ROUTE MAP STORED</small></div><div className="activity-body"><div className="activity-meta"><Badge tone={savedRun.mode === "live" ? "green" : "amber"}>{savedRun.mode === "live" ? "LIVE GPS" : "DEMO ROUTE"}</Badge><span>{index === 0 ? "Saved just now" : `Activity ${savedRuns.length - index}`} · no campaign joined</span></div><div className="activity-stats"><div><b>{savedRun.distance.toFixed(2)}</b><span>KM</span></div><div><b>{formatTime(savedRun.seconds)}</b><span>TIME</span></div><div><b>{savedRun.distance ? `${Math.floor(savedRun.seconds / 60 / savedRun.distance)}:${Math.round(((savedRun.seconds / 60 / savedRun.distance) % 1) * 60).toString().padStart(2, "0")}` : "--:--"}</b><span>PACE /KM</span></div></div><div className="activity-save-note"><span>✓</span><p><b>Activity proof {savedRun.proofId}</b><small>Distance, duration, session window and verification result are retained. Raw GPS points were discarded after this session.</small></p></div></div></div>)}</div></div>;
+  return <div className="activity-view"><div className="section-heading"><div><Badge tone="green">ACTIVITIES SAVED</Badge><h1>Every run stays on your record.</h1><p>Several activity receipts can contribute to an open weekly rule. Only summaries and proof IDs are retained—never a persistent route map.</p></div><div className="activity-actions"><button className="text-button" onClick={onClear}>Clear this device</button><button className="button button-primary" onClick={onRewards}>View matching rewards <span>→</span></button></div></div><div className="weekly-progress"><div><span className="eyebrow">THIS WEEK</span><b>{weeklyDistance.toFixed(2)} <small>/ {campaign.goal.toFixed(2)} KM</small></b><p>{savedRuns.length} verified activity {savedRuns.length === 1 ? "receipt" : "receipts"} ready for matching.</p></div><div className="weekly-progress-bar"><span style={{ width: `${Math.min(100, (weeklyDistance / campaign.goal) * 100)}%` }} /></div></div><div className="activity-list">{savedRuns.map((savedRun, index) => <div className="activity-card" key={savedRun.proofId}><div className="privacy-receipt"><span className="receipt-lock">⌁</span><b>Private by default</b><small>NO ROUTE MAP STORED</small></div><div className="activity-body"><div className="activity-meta"><Badge tone={savedRun.mode === "live" ? "green" : "amber"}>{savedRun.mode === "live" ? "LIVE GPS" : "DEMO ROUTE"}</Badge><span>{index === 0 ? "Saved just now" : `Activity ${savedRuns.length - index}`} · no campaign joined</span></div><div className="activity-stats"><div><b>{savedRun.distance.toFixed(2)}</b><span>KM</span></div><div><b>{formatTime(savedRun.seconds)}</b><span>TIME</span></div><div><b>{savedRun.distance ? `${Math.floor(savedRun.seconds / 60 / savedRun.distance)}:${Math.round(((savedRun.seconds / 60 / savedRun.distance) % 1) * 60).toString().padStart(2, "0")}` : "--:--"}</b><span>PACE /KM</span></div></div><div className="activity-save-note"><span>✓</span><p><b>Activity proof {savedRun.proofId}</b><small>Distance, duration, session window and verification result are retained. Raw GPS points were discarded after this session.</small></p></div></div></div>)}</div></div>;
 }
 
 function RewardsScreen({ savedRuns, verifiedDistance, rewardStatus, wallet, onCheck, onClaim, onRun, onConnectWallet }: { savedRuns: SavedRun[]; verifiedDistance: number; rewardStatus: RewardStatus; wallet: boolean; onCheck: () => void; onClaim: () => void; onRun: () => void; onConnectWallet: () => void }) {

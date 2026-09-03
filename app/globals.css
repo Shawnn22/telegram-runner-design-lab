@@ -208,3 +208,28 @@
   .design-lab .start-copy h3 { font-size: 35px; }
   .design-lab .tracking-primary strong { font-size: 75px; }
 }
+
+
+/* Product-flow expansion: a visible pre-run command center, not a generic campaign dashboard. */
+.design-lab .run-command-center { display:grid; grid-template-columns:1.08fr 1.55fr 1.08fr; gap:10px; margin:0 0 15px; }
+.design-lab .run-command-center>div { min-height:119px; padding:16px; border:1px solid #dae5ee; border-radius:19px; background:rgba(255,255,255,.78); box-shadow:0 10px 24px rgba(10,34,59,.045); }
+.design-lab .command-distance { position:relative; overflow:hidden; background:linear-gradient(145deg,#edf6ff,#fff)!important; }
+.design-lab .command-distance:after { position:absolute; right:-21px; bottom:-37px; width:105px; height:105px; border:12px solid rgba(72,139,255,.13); border-radius:50%; content:""; }
+.design-lab .run-command-center span, .design-lab .run-command-center b, .design-lab .run-command-center small { display:block; }
+.design-lab .run-command-center span { color:#718399; font-size:8px; font-weight:900; letter-spacing:.15em; }
+.design-lab .command-distance strong { display:block; margin:6px 0 1px; color:#0b1e37; font-size:31px; line-height:1; letter-spacing:-.07em; }
+.design-lab .command-distance small, .design-lab .command-plan small, .design-lab .command-trust small { position:relative; z-index:1; margin-top:5px; color:#718399; font-size:9px; line-height:1.35; }
+.design-lab .command-distance i { display:block; position:relative; z-index:1; width:92%; height:5px; margin-top:11px; overflow:hidden; border-radius:99px; background:#d9e7f3; }
+.design-lab .command-distance em { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#3e8cff,#d6ff52); }
+.design-lab .command-plan { display:flex; align-items:stretch; justify-content:space-between; gap:12px; }
+.design-lab .command-plan b, .design-lab .command-trust b { margin-top:8px; color:#112743; font-size:14px; letter-spacing:-.025em; }
+.design-lab .target-pills { display:grid; grid-template-columns:1fr; gap:5px; align-content:center; }
+.design-lab .target-pills button { min-width:39px; padding:5px 7px; border:1px solid #d9e3eb; border-radius:8px; background:#fff; color:#698096; font-size:9px; font-weight:900; }
+.design-lab .target-pills button.active { border-color:#2f7cf3; background:#0d2139; color:#fff; }
+.design-lab .command-trust { background:linear-gradient(145deg,#0a1b31,#123b5e)!important; }
+.design-lab .command-trust span { color:#a7c6df!important; }
+.design-lab .command-trust b { color:#fff!important; line-height:1.15; }
+.design-lab .command-trust small { color:#b2cadd!important; }
+.design-lab .activity-actions { display:flex; align-items:center; gap:12px; }
+.design-lab .activity-actions .text-button { color:#637991; font-size:11px; }
+@media(max-width:800px) { .design-lab .run-command-center{grid-template-columns:1fr 1fr;gap:8px}.design-lab .run-command-center>div{min-height:112px;padding:14px}.design-lab .command-plan{grid-column:span 2}.design-lab .command-trust{display:none}.design-lab .target-pills{grid-template-columns:repeat(3,1fr);align-content:end}.design-lab .activity-actions{width:100%;justify-content:space-between}.design-lab .section-heading .activity-actions .button{width:auto}.design-lab .command-distance strong{font-size:29px} }
