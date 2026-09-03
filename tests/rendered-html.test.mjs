@@ -56,6 +56,9 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /setLivePoint\(next\)/);
   assert.match(page, /Finish & save/);
   assert.match(page, /pauseRun/);
+  assert.match(page, /RunSummary/);
+  assert.match(page, /Use device GPS now/);
+  assert.match(page, /Tap Finish again to save/);
   assert.match(page, /resumeRun/);
   assert.match(page, /visibilitychange/);
   assert.match(page, /<RunnerApp \/>/);

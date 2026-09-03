@@ -11,7 +11,7 @@ import {
   type TelegramLocationManager,
 } from "./telegram-location";
 
-type RunnerStage = "ready" | "tracking";
+type RunnerStage = "ready" | "tracking" | "summary";
 type RunnerTab = "run" | "activity" | "rewards";
 type RewardStatus = "checking" | "eligible" | "more-running" | "claimed";
 
@@ -107,6 +107,8 @@ function RunnerApp() {
   const [trackingMode, setTrackingMode] = useState<"demo" | "live">("live");
   const [tracking, setTracking] = useState(false);
   const [paused, setPaused] = useState(false);
+  const [finishArmed, setFinishArmed] = useState(false);
+  const [latestRun, setLatestRun] = useState<SavedRun | null>(null);
   const [seconds, setSeconds] = useState(0);
   const [distance, setDistance] = useState(0);
   const [livePoint, setLivePoint] = useState<Point | null>(null);
@@ -174,6 +176,7 @@ function RunnerApp() {
     lastPoint.current = null;
     setLocationBlocked(false);
     setPaused(false);
+    setFinishArmed(false);
     setStage("tracking");
     setTracking(true);
     setGpsStatus(status);
@@ -267,6 +270,7 @@ function RunnerApp() {
     setStage("tracking");
     setTracking(true);
     setPaused(false);
+    setFinishArmed(false);
     setGpsStatus("Simulated route active");
   }
 
@@ -279,6 +283,11 @@ function RunnerApp() {
   }
 
   function stopRun() {
+    if (!finishArmed) {
+      setFinishArmed(true);
+      setGpsStatus("Tap Finish again to save this run");
+      return;
+    }
     liveSessionId.current += 1;
     setTracking(false);
     clearLiveLocation();
@@ -290,11 +299,13 @@ function RunnerApp() {
     }
     lastPoint.current = null;
     setLivePoint(null);
-    setSavedRuns((runs) => [{ distance, seconds, mode: trackingMode, proofId: `RUN-${Date.now().toString(36).toUpperCase()}` }, ...runs]);
+    const receipt = { distance, seconds, mode: trackingMode, proofId: `RUN-${Date.now().toString(36).toUpperCase()}` } as SavedRun;
+    setSavedRuns((runs) => [receipt, ...runs]);
+    setLatestRun(receipt);
     setRewardStatus("checking");
-    setStage("ready");
+    setStage("summary");
     setPaused(false);
-    setTab("activity");
+    setFinishArmed(false);
   }
 
   function pauseRun(reason = "Paused") {
@@ -303,6 +314,7 @@ function RunnerApp() {
     clearLiveLocation();
     lastPoint.current = null;
     setTracking(false);
+    setFinishArmed(false);
     setPaused(true);
     setGpsStatus(reason);
   }
@@ -330,6 +342,10 @@ function RunnerApp() {
   const weeklyProgress = Math.min(100, (verifiedDistance / campaign.goal) * 100);
   const remainingDistance = Math.max(0, campaign.goal - verifiedDistance);
 
+  if (stage === "summary" && latestRun) {
+    return <RunSummary run={latestRun} onContinue={() => { setLatestRun(null); setStage("ready"); setTab("run"); }} onActivity={() => { setLatestRun(null); setStage("ready"); setTab("activity"); }} onRewards={() => { setLatestRun(null); setStage("ready"); setTab("rewards"); }} />;
+  }
+
   if (stage === "tracking") {
     return (
       <section className="runner-surface tracking-surface">
@@ -337,7 +353,7 @@ function RunnerApp() {
         <div className={`tracking-map ${trackingMode === "live" ? "live-map" : "demo-map"}`}>
           <div className="map-grid" />
           {trackingMode === "live" && livePoint && <iframe className="live-map-frame" title="Your live GPS location" src={liveMapUrl(livePoint)} referrerPolicy="no-referrer" />}
-          {trackingMode === "live" && !livePoint && <div className="live-map-wait"><b>{paused ? "Run paused" : "Locating you…"}</b><span>{paused ? "Tap resume when you are ready to keep running." : "Map appears after the first accurate GPS fix."}</span></div>}
+          {trackingMode === "live" && !livePoint && <div className="live-map-wait"><b>{paused ? "Run paused" : "Finding your GPS…"}</b><span>{paused ? "Tap resume when you are ready to keep running." : "We will switch to device GPS automatically if Telegram does not reply."}</span>{!paused && <button className="gps-retry" onClick={() => startDeviceGps(true)}>Use device GPS now</button>}{locationBlocked && telegramLocationManager.current && <button className="gps-retry" onClick={() => telegramLocationManager.current?.openSettings()}>Open Telegram settings</button>}</div>}
           {trackingMode === "demo" && <><span className="track-line track-one" /><span className="track-line track-two" /><span className="track-line track-three" /><span className="track-line track-four" /></>}
           <span className="runner-pulse"><i /></span>
           <div className="gps-chip"><span className={paused ? "gps-dot paused" : "gps-dot"} />{gpsStatus}</div>
@@ -347,7 +363,7 @@ function RunnerApp() {
           <div className="tracking-primary"><span className="run-label">LIVE SESSION</span><strong>{distance.toFixed(2)}</strong><span>KILOMETERS</span></div>
           <div className="tracking-secondary"><div><strong>{formatTime(seconds)}</strong><span>ELAPSED</span></div><div><strong>{pace ? `${Math.floor(pace)}:${Math.round((pace % 1) * 60).toString().padStart(2, "0")}` : "--:--"}</strong><span>AVG PACE /KM</span></div></div>
           <div className="goal-progress"><span style={{ width: `${Math.min(100, (distance / campaign.goal) * 100)}%` }} /><b>{Math.min(100, Math.round((distance / campaign.goal) * 100))}% toward an available 5K reward</b></div>
-          <div className="run-controls">{paused ? <button className="resume-button" onClick={resumeRun}><span>▶</span> Resume run</button> : <button className="pause-button" onClick={() => pauseRun()}><span>Ⅱ</span> Pause</button>}<button className="stop-button" onClick={stopRun}><span>■</span> Finish & save</button></div>
+          <div className="run-controls">{paused ? <button className="resume-button" onClick={resumeRun}><span>▶</span> Resume run</button> : <button className="pause-button" onClick={() => pauseRun()}><span>Ⅱ</span> Pause</button>}<button className={`stop-button ${finishArmed ? "armed" : ""}`} onClick={stopRun}><span>■</span>{finishArmed ? " Tap again to save" : " Finish run"}</button></div>
         </div>
       </section>
     );
@@ -369,7 +385,7 @@ function RunnerApp() {
       <div className="run-journey" aria-label="How the runner flow works"><div className="active"><span>1</span><p><b>Track</b><small>Foreground GPS only</small></p></div><div><span>2</span><p><b>Save</b><small>Private activity receipt</small></p></div><div><span>3</span><p><b>Match</b><small>Rewards stay separate</small></p></div></div>
       <div className="start-panel quick-run-panel">
         <div className="start-copy"><span className="eyebrow">TODAY&apos;S QUICK RUN</span><h3>{remainingDistance ? `${remainingDistance.toFixed(1)} km to unlock this week.` : "Weekly goal complete."}</h3><p>No campaign signup. Use live GPS while this Mini App is open; we save a compact activity receipt after you finish — not your route.</p><div className="privacy-points"><span>⌖ Live location</span><span>◌ No route history</span></div></div>
-        <div className="start-control"><div className="mode-toggle"><button className={trackingMode === "live" ? "active" : ""} onClick={() => selectTrackingMode("live")}><i>⌖</i><b>Live GPS</b><span>Telegram or device</span></button><button className={trackingMode === "demo" ? "active" : ""} onClick={() => selectTrackingMode("demo")}><i>◷</i><b>Demo route</b><span>Time-compressed</span></button></div><div className="gps-start-actions">{trackingMode === "live" && <p className="gps-access-note" role="status"><span className="signal-dot" />{gpsStatus}{locationBlocked && telegramLocationManager.current && <button className="text-button" onClick={() => telegramLocationManager.current?.openSettings()}>Open Telegram settings</button>}</p>}<button className="button button-primary start-run" onClick={startRun}><span className="start-icon">⌖</span>{trackingMode === "live" ? "Start live run" : "Start quick run"} <span>→</span></button></div></div>
+        <div className="start-control"><div className="gps-readiness"><span className="gps-dot" /><div><b>{trackingMode === "live" ? "GPS will check when you start" : "Demo route ready"}</b><small>{trackingMode === "live" ? "Telegram first, then device GPS automatically" : "For UI testing only"}</small></div></div><div className="mode-toggle"><button className={trackingMode === "live" ? "active" : ""} onClick={() => selectTrackingMode("live")}><i>⌖</i><b>Live GPS</b><span>Telegram or device</span></button><button className={trackingMode === "demo" ? "active" : ""} onClick={() => selectTrackingMode("demo")}><i>◷</i><b>Demo route</b><span>Time-compressed</span></button></div><div className="gps-start-actions">{trackingMode === "live" && <p className="gps-access-note" role="status"><span className="signal-dot" />{gpsStatus}{locationBlocked && telegramLocationManager.current && <button className="text-button" onClick={() => telegramLocationManager.current?.openSettings()}>Open Telegram settings</button>}</p>}<button className="button button-primary start-run" onClick={startRun}><span className="start-icon">⌖</span>{trackingMode === "live" ? "Start live run" : "Start quick run"} <span>→</span></button></div></div>
       </div>
       <div className="campaign-feature">
         <div className="campaign-art"><span className="globe-ring ring-a" /><span className="globe-ring ring-b" /><strong>5K</strong><small>GLOBAL WEEK</small></div>
@@ -388,6 +404,11 @@ function RunnerApp() {
       {walletSheet && <WalletSheet connected={Boolean(wallet)} address={walletAddress} onClose={() => setWalletSheet(false)} />}
     </section>
   );
+}
+
+function RunSummary({ run, onContinue, onActivity, onRewards }: { run: SavedRun; onContinue: () => void; onActivity: () => void; onRewards: () => void }) {
+  const pace = run.distance > 0 ? run.seconds / 60 / run.distance : 0;
+  return <section className="runner-surface run-summary"><Badge tone="green">RUN SAVED</Badge><div className="summary-hero"><span>✓</span><h1>Nice work.</h1><p>Your route was discarded. Only this private activity receipt was saved.</p></div><div className="summary-metrics"><div><b>{run.distance.toFixed(2)}</b><small>KM</small></div><div><b>{formatTime(run.seconds)}</b><small>TIME</small></div><div><b>{pace ? formatTime(Math.round(pace * 60)) : "--:--"}</b><small>PACE /KM</small></div></div><div className="summary-receipt"><span>⌁</span><p><b>{run.mode === "live" ? "Live GPS receipt" : "Demo receipt"}</b><small>Proof {run.proofId} · raw GPS points deleted</small></p></div><div className="summary-actions"><button className="button button-primary" onClick={onRewards}>Check rewards <span>→</span></button><button className="button button-secondary" onClick={onActivity}>View activity</button><button className="text-button" onClick={onContinue}>Start another run</button></div></section>;
 }
 
 function WalletSheet({ connected, address, onClose }: { connected: boolean; address: string; onClose: () => void }) {
