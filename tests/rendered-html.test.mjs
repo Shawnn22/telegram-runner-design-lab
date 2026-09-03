@@ -53,7 +53,10 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /openstreetmap\.org\/export\/embed/);
   assert.match(page, /Your live GPS location/);
   assert.match(page, /setLivePoint\(next\)/);
-  assert.match(page, /Finish run/);
+  assert.match(page, /Finish & save/);
+  assert.match(page, /pauseRun/);
+  assert.match(page, /resumeRun/);
+  assert.match(page, /visibilitychange/);
   assert.match(page, /<RunnerApp \/>/);
   assert.match(page, /export function AdminConsole/);
   assert.match(page, /TODAY(?:'|&apos;)S QUICK RUN/);

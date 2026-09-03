@@ -106,6 +106,7 @@ function RunnerApp() {
   const [walletSheet, setWalletSheet] = useState(false);
   const [trackingMode, setTrackingMode] = useState<"demo" | "live">("live");
   const [tracking, setTracking] = useState(false);
+  const [paused, setPaused] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [distance, setDistance] = useState(0);
   const [livePoint, setLivePoint] = useState<Point | null>(null);
@@ -163,13 +164,16 @@ function RunnerApp() {
     setGpsStatus(`${source} GPS · ±${Math.round(accuracy)}m`);
   }
 
-  function beginLiveSession(status: string) {
+  function beginLiveSession(status: string, reset = true) {
     liveSessionId.current += 1;
-    setSeconds(0);
-    setDistance(0);
-    setLivePoint(null);
+    if (reset) {
+      setSeconds(0);
+      setDistance(0);
+      setLivePoint(null);
+    }
     lastPoint.current = null;
     setLocationBlocked(false);
+    setPaused(false);
     setStage("tracking");
     setTracking(true);
     setGpsStatus(status);
@@ -185,8 +189,8 @@ function RunnerApp() {
     setGpsStatus(message);
   }
 
-  async function startTelegramGps(manager: TelegramLocationManager) {
-    const sessionId = beginLiveSession("Requesting Telegram location…");
+  async function startTelegramGps(manager: TelegramLocationManager, reset = true) {
+    const sessionId = beginLiveSession(reset ? "Requesting Telegram location…" : "Resuming Telegram GPS…", reset);
     const available = await initializeTelegramLocation(manager);
     if (sessionId !== liveSessionId.current) return;
     if (!available) {
@@ -214,12 +218,12 @@ function RunnerApp() {
     if (receivedFirstFix && sessionId === liveSessionId.current && lastPoint.current) telegramPollId.current = window.setInterval(() => void readLocation(), 5000);
   }
 
-  function startDeviceGps() {
+  function startDeviceGps(reset = true) {
     if (!navigator.geolocation) {
       stopUnavailableGps("This browser does not provide location services");
       return;
     }
-    const sessionId = beginLiveSession("Requesting device location…");
+    const sessionId = beginLiveSession(reset ? "Requesting device location…" : "Resuming device GPS…", reset);
     watchId.current = navigator.geolocation.watchPosition(
       (position) => {
         if (sessionId !== liveSessionId.current) return;
@@ -237,16 +241,20 @@ function RunnerApp() {
     );
   }
 
-  function startRun() {
+  function startLiveGps(reset = true) {
     clearLiveLocation();
+    const manager = getTelegramLocationManager();
+    if (manager) {
+      telegramLocationManager.current = manager;
+      void startTelegramGps(manager, reset);
+    } else {
+      startDeviceGps(reset);
+    }
+  }
+
+  function startRun() {
     if (trackingMode === "live") {
-      const manager = getTelegramLocationManager();
-      if (manager) {
-        telegramLocationManager.current = manager;
-        void startTelegramGps(manager);
-      } else {
-        startDeviceGps();
-      }
+      startLiveGps(true);
       return;
     }
     setSeconds(0);
@@ -256,6 +264,7 @@ function RunnerApp() {
     liveSessionId.current += 1;
     setStage("tracking");
     setTracking(true);
+    setPaused(false);
     setGpsStatus("Simulated route active");
   }
 
@@ -263,6 +272,7 @@ function RunnerApp() {
     clearLiveLocation();
     setTrackingMode(mode);
     setLocationBlocked(false);
+    setPaused(false);
     setGpsStatus(mode === "live" ? "Ready to request live GPS" : "Demo route is intentionally simulated");
   }
 
@@ -270,8 +280,10 @@ function RunnerApp() {
     liveSessionId.current += 1;
     setTracking(false);
     clearLiveLocation();
-    if (trackingMode === "live" && !lastPoint.current) {
+    if (distance < 0.02 || seconds < 10) {
       setStage("ready");
+      setPaused(false);
+      setGpsStatus("Run not saved — move at least 20 m for 10 seconds");
       return;
     }
     lastPoint.current = null;
@@ -279,8 +291,37 @@ function RunnerApp() {
     setSavedRuns((runs) => [{ distance, seconds, mode: trackingMode, proofId: `RUN-${Date.now().toString(36).toUpperCase()}` }, ...runs]);
     setRewardStatus("checking");
     setStage("ready");
+    setPaused(false);
     setTab("activity");
   }
+
+  function pauseRun(reason = "Paused") {
+    if (!tracking) return;
+    liveSessionId.current += 1;
+    clearLiveLocation();
+    lastPoint.current = null;
+    setTracking(false);
+    setPaused(true);
+    setGpsStatus(reason);
+  }
+
+  function resumeRun() {
+    if (trackingMode === "live") {
+      startLiveGps(false);
+      return;
+    }
+    setPaused(false);
+    setTracking(true);
+    setGpsStatus("Demo route active");
+  }
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.hidden) pauseRun("Paused — return to Telegram to continue");
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  });
 
   const pace = distance > 0 ? Math.max(4, seconds / 60 / distance) : 0;
   const verifiedDistance = savedRuns.reduce((total, run) => total + run.distance, 0);
@@ -290,11 +331,11 @@ function RunnerApp() {
   if (stage === "tracking") {
     return (
       <section className="runner-surface tracking-surface">
-        <div className="runner-topline"><button className="text-button" onClick={stopRun}>End session</button><Badge tone={trackingMode === "live" ? "green" : "amber"}>{trackingMode === "live" ? "LIVE GPS" : "DEMO ROUTE"}</Badge></div>
+        <div className="runner-topline"><button className="text-button" onClick={stopRun}>Finish & save</button><Badge tone={paused ? "amber" : trackingMode === "live" ? "green" : "amber"}>{paused ? "PAUSED" : trackingMode === "live" ? "LIVE GPS" : "DEMO ROUTE"}</Badge></div>
         <div className={`tracking-map ${trackingMode === "live" ? "live-map" : "demo-map"}`}>
           <div className="map-grid" />
           {trackingMode === "live" && livePoint && <iframe className="live-map-frame" title="Your live GPS location" src={liveMapUrl(livePoint)} referrerPolicy="no-referrer" />}
-          {trackingMode === "live" && !livePoint && <div className="live-map-wait"><b>Locating you…</b><span>Map appears after the first accurate GPS fix.</span></div>}
+          {trackingMode === "live" && !livePoint && <div className="live-map-wait"><b>{paused ? "Run paused" : "Locating you…"}</b><span>{paused ? "Tap resume when you are ready to keep running." : "Map appears after the first accurate GPS fix."}</span></div>}
           {trackingMode === "demo" && <><span className="track-line track-one" /><span className="track-line track-two" /><span className="track-line track-three" /><span className="track-line track-four" /></>}
           <span className="runner-pulse"><i /></span>
           <div className="gps-chip">● {gpsStatus}</div>
@@ -304,7 +345,7 @@ function RunnerApp() {
           <div className="tracking-primary"><strong>{distance.toFixed(2)}</strong><span>KILOMETERS</span></div>
           <div className="tracking-secondary"><div><strong>{formatTime(seconds)}</strong><span>TIME</span></div><div><strong>{pace ? `${Math.floor(pace)}:${Math.round((pace % 1) * 60).toString().padStart(2, "0")}` : "--:--"}</strong><span>AVG PACE /KM</span></div></div>
           <div className="goal-progress"><span style={{ width: `${Math.min(100, (distance / campaign.goal) * 100)}%` }} /><b>{Math.min(100, Math.round((distance / campaign.goal) * 100))}% toward an available 5K reward</b></div>
-          <button className="stop-button" onClick={stopRun}><span>■</span> Finish run</button>
+          <div className="run-controls">{paused ? <button className="resume-button" onClick={resumeRun}><span>▶</span> Resume run</button> : <button className="pause-button" onClick={() => pauseRun()}><span>Ⅱ</span> Pause</button>}<button className="stop-button" onClick={stopRun}><span>■</span> Finish & save</button></div>
         </div>
       </section>
     );
