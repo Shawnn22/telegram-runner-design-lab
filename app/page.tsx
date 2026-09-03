@@ -106,6 +106,7 @@ function RunnerApp() {
   const [walletSheet, setWalletSheet] = useState(false);
   const [trackingMode, setTrackingMode] = useState<"demo" | "live">("live");
   const [tracking, setTracking] = useState(false);
+  const [gpsLocked, setGpsLocked] = useState(false);
   const [paused, setPaused] = useState(false);
   const [finishArmed, setFinishArmed] = useState(false);
   const [latestRun, setLatestRun] = useState<SavedRun | null>(null);
@@ -125,13 +126,13 @@ function RunnerApp() {
   const walletAddress = useTonAddress();
 
   useEffect(() => {
-    if (!tracking) return;
+    if (!tracking || (trackingMode === "live" && !gpsLocked)) return;
     const timer = window.setInterval(() => {
       setSeconds((value) => value + 1);
       if (trackingMode === "demo") setDistance((value) => Math.min(campaign.goal, value + 0.085));
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [tracking, trackingMode]);
+  }, [tracking, trackingMode, gpsLocked]);
 
   useEffect(() => () => clearLiveLocation(), []);
 
@@ -162,6 +163,7 @@ function RunnerApp() {
     }
 
     lastPoint.current = next;
+    setGpsLocked(true);
     setLivePoint(next);
     setGpsStatus(`${source} GPS · ±${Math.round(accuracy)}m`);
   }
@@ -172,6 +174,7 @@ function RunnerApp() {
       setSeconds(0);
       setDistance(0);
       setLivePoint(null);
+      setGpsLocked(false);
     }
     lastPoint.current = null;
     setLocationBlocked(false);
@@ -265,6 +268,7 @@ function RunnerApp() {
     setSeconds(0);
     setDistance(0);
     setLivePoint(null);
+    setGpsLocked(false);
     lastPoint.current = null;
     liveSessionId.current += 1;
     setStage("tracking");
@@ -356,11 +360,11 @@ function RunnerApp() {
           {trackingMode === "live" && !livePoint && <div className="live-map-wait"><b>{paused ? "Run paused" : "Finding your GPS…"}</b><span>{paused ? "Tap resume when you are ready to keep running." : "We will switch to device GPS automatically if Telegram does not reply."}</span>{!paused && <button className="gps-retry" onClick={() => startDeviceGps(true)}>Use device GPS now</button>}{locationBlocked && telegramLocationManager.current && <button className="gps-retry" onClick={() => telegramLocationManager.current?.openSettings()}>Open Telegram settings</button>}</div>}
           {trackingMode === "demo" && <><span className="track-line track-one" /><span className="track-line track-two" /><span className="track-line track-three" /><span className="track-line track-four" /></>}
           <span className="runner-pulse"><i /></span>
-          <div className="gps-chip"><span className={paused ? "gps-dot paused" : "gps-dot"} />{gpsStatus}</div>
+          <div className="gps-chip"><span className={paused ? "gps-dot paused" : gpsLocked ? "gps-dot" : "gps-dot searching"} />{gpsStatus}</div>
           {trackingMode === "live" && livePoint && <a className="map-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>}
         </div>
         <div className="tracking-panel">
-          <div className="tracking-primary"><span className="run-label">LIVE SESSION</span><strong>{distance.toFixed(2)}</strong><span>KILOMETERS</span></div>
+          <div className="tracking-primary"><span className="run-label">{trackingMode === "live" ? gpsLocked ? "GPS LOCKED · RECORDING" : "WAITING FOR GPS LOCK" : "DEMO SESSION"}</span><strong>{distance.toFixed(2)}</strong><span>KILOMETERS</span></div>
           <div className="tracking-secondary"><div><strong>{formatTime(seconds)}</strong><span>ELAPSED</span></div><div><strong>{pace ? `${Math.floor(pace)}:${Math.round((pace % 1) * 60).toString().padStart(2, "0")}` : "--:--"}</strong><span>AVG PACE /KM</span></div></div>
           <div className="goal-progress"><span style={{ width: `${Math.min(100, (distance / campaign.goal) * 100)}%` }} /><b>{Math.min(100, Math.round((distance / campaign.goal) * 100))}% toward an available 5K reward</b></div>
           <div className="run-controls">{paused ? <button className="resume-button" onClick={resumeRun}><span>▶</span> Resume run</button> : <button className="pause-button" onClick={() => pauseRun()}><span>Ⅱ</span> Pause</button>}<button className={`stop-button ${finishArmed ? "armed" : ""}`} onClick={stopRun}><span>■</span>{finishArmed ? " Tap again to save" : " Finish run"}</button></div>

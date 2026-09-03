@@ -58,6 +58,8 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /pauseRun/);
   assert.match(page, /RunSummary/);
   assert.match(page, /Use device GPS now/);
+  assert.match(page, /GPS LOCKED · RECORDING/);
+  assert.match(page, /setGpsLocked\(true\)/);
   assert.match(page, /Tap Finish again to save/);
   assert.match(page, /resumeRun/);
   assert.match(page, /visibilitychange/);
