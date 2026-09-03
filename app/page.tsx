@@ -192,19 +192,13 @@ function RunnerApp() {
   async function startTelegramGps(manager: TelegramLocationManager, reset = true) {
     const sessionId = beginLiveSession(reset ? "Requesting Telegram location…" : "Resuming Telegram GPS…", reset);
     const available = await initializeTelegramLocation(manager);
-    if (sessionId !== liveSessionId.current) return;
-    if (!available) {
-      stopUnavailableGps("Telegram location services are unavailable on this device");
-      return;
-    }
+    if (sessionId !== liveSessionId.current) return true;
+    if (!available) return false;
 
     const readLocation = async () => {
       const location = await requestTelegramLocation(manager);
       if (sessionId !== liveSessionId.current) return false;
-      if (!location) {
-        stopUnavailableGps("Allow location in Telegram to start a live run", true);
-        return false;
-      }
+      if (!location) return false;
       recordLocation({
         latitude: location.latitude,
         longitude: location.longitude,
@@ -215,7 +209,10 @@ function RunnerApp() {
     };
 
     const receivedFirstFix = await readLocation();
-    if (receivedFirstFix && sessionId === liveSessionId.current && lastPoint.current) telegramPollId.current = window.setInterval(() => void readLocation(), 5000);
+    if (receivedFirstFix && sessionId === liveSessionId.current && lastPoint.current) {
+      telegramPollId.current = window.setInterval(() => void readLocation(), 5000);
+    }
+    return receivedFirstFix;
   }
 
   function startDeviceGps(reset = true) {
@@ -246,7 +243,12 @@ function RunnerApp() {
     const manager = getTelegramLocationManager();
     if (manager) {
       telegramLocationManager.current = manager;
-      void startTelegramGps(manager, reset);
+      void startTelegramGps(manager, reset).then((receivedFix) => {
+        if (!receivedFix && liveSessionId.current > 0) {
+          setGpsStatus("Telegram GPS timed out — using device GPS instead");
+          startDeviceGps(reset);
+        }
+      });
     } else {
       startDeviceGps(reset);
     }
@@ -338,12 +340,12 @@ function RunnerApp() {
           {trackingMode === "live" && !livePoint && <div className="live-map-wait"><b>{paused ? "Run paused" : "Locating you…"}</b><span>{paused ? "Tap resume when you are ready to keep running." : "Map appears after the first accurate GPS fix."}</span></div>}
           {trackingMode === "demo" && <><span className="track-line track-one" /><span className="track-line track-two" /><span className="track-line track-three" /><span className="track-line track-four" /></>}
           <span className="runner-pulse"><i /></span>
-          <div className="gps-chip">● {gpsStatus}</div>
+          <div className="gps-chip"><span className={paused ? "gps-dot paused" : "gps-dot"} />{gpsStatus}</div>
           {trackingMode === "live" && livePoint && <a className="map-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>}
         </div>
         <div className="tracking-panel">
-          <div className="tracking-primary"><strong>{distance.toFixed(2)}</strong><span>KILOMETERS</span></div>
-          <div className="tracking-secondary"><div><strong>{formatTime(seconds)}</strong><span>TIME</span></div><div><strong>{pace ? `${Math.floor(pace)}:${Math.round((pace % 1) * 60).toString().padStart(2, "0")}` : "--:--"}</strong><span>AVG PACE /KM</span></div></div>
+          <div className="tracking-primary"><span className="run-label">LIVE SESSION</span><strong>{distance.toFixed(2)}</strong><span>KILOMETERS</span></div>
+          <div className="tracking-secondary"><div><strong>{formatTime(seconds)}</strong><span>ELAPSED</span></div><div><strong>{pace ? `${Math.floor(pace)}:${Math.round((pace % 1) * 60).toString().padStart(2, "0")}` : "--:--"}</strong><span>AVG PACE /KM</span></div></div>
           <div className="goal-progress"><span style={{ width: `${Math.min(100, (distance / campaign.goal) * 100)}%` }} /><b>{Math.min(100, Math.round((distance / campaign.goal) * 100))}% toward an available 5K reward</b></div>
           <div className="run-controls">{paused ? <button className="resume-button" onClick={resumeRun}><span>▶</span> Resume run</button> : <button className="pause-button" onClick={() => pauseRun()}><span>Ⅱ</span> Pause</button>}<button className="stop-button" onClick={stopRun}><span>■</span> Finish & save</button></div>
         </div>

@@ -45,6 +45,7 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /Demo boundary/i);
   assert.match(page, /navigator\.geolocation\.watchPosition/);
   assert.match(page, /LocationManager/);
+  assert.match(page, /using device GPS instead/);
   assert.match(page, /initializeTelegramWebApp/);
   assert.match(page, /Telegram session/);
   assert.match(page, /Open Telegram settings/);
@@ -67,6 +68,7 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /tonconnect-manifest\.json/);
   const telegramLocation = await readFile(new URL("../app/telegram-location.ts", import.meta.url), "utf8");
   assert.match(telegramLocation, /getLocation/);
+  assert.match(telegramLocation, /timeoutMs = 6000/);
   assert.match(telegramLocation, /openSettings/);
   assert.match(telegramLocation, /webApp\?\.ready/);
   assert.match(telegramLocation, /webApp\?\.expand/);

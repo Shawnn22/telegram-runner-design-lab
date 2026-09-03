@@ -43,14 +43,26 @@ export function getTelegramLocationManager() {
   return getTelegramWebApp()?.LocationManager ?? null;
 }
 
-export function initializeTelegramLocation(manager: TelegramLocationManager) {
+export function initializeTelegramLocation(manager: TelegramLocationManager, timeoutMs = 2500) {
   return new Promise<boolean>((resolve) => {
-    manager.init(() => resolve(manager.isLocationAvailable));
+    const timeout = window.setTimeout(() => resolve(false), timeoutMs);
+    manager.init(() => {
+      window.clearTimeout(timeout);
+      resolve(manager.isLocationAvailable);
+    });
   });
 }
 
-export function requestTelegramLocation(manager: TelegramLocationManager) {
+export function requestTelegramLocation(manager: TelegramLocationManager, timeoutMs = 6000) {
   return new Promise<TelegramLocationData | null>((resolve) => {
-    manager.getLocation((location) => resolve(location));
+    let settled = false;
+    const finish = (location: TelegramLocationData | null) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      resolve(location);
+    };
+    const timeout = window.setTimeout(() => finish(null), timeoutMs);
+    manager.getLocation(finish);
   });
 }
