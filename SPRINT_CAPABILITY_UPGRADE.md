@@ -17,6 +17,7 @@ Make the Design Lab behave like a usable foreground running app without adding a
 - Rich run summary, activity verification states and Telegram/native sharing.
 - Pre-run workout selection for Easy, Tempo and Long runs; the choice is retained in each activity receipt.
 - Seven-day journey visualization and three progressive runner milestones in Run History.
+- Solar Sprint visual-depth system: atmospheric light field, glass navigation, layered elevations, deep focal surfaces and a typography-only header wordmark.
 - Automatic reward matching when the Rewards tab opens; wallet remains claim-only.
 
 ## Explicit demo or external-infrastructure boundaries

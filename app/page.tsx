@@ -153,7 +153,7 @@ export default function Home() {
     <main className="app-shell design-lab">
       <header className="topbar">
         <Link className="brand" href="/" aria-label="Stride home">
-          <span className="brand-logo" aria-hidden="true" />
+          <span className="brand-logo" aria-label="Stride">STRIDE</span>
           <Badge tone="neutral">TON</Badge><span className="lab-signal">PRIVATE BETA</span>
         </Link>
         <div className="user-flow-label"><b>STRIDE SIGNAL</b><span>Start → record → save privately</span></div>
