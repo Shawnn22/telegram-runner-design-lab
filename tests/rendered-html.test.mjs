@@ -14,16 +14,16 @@ async function render(path = "/") {
   );
 }
 
-test("server-renders the Telegram Runner demo shell", async () => {
+test("server-renders the Stride running app shell", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /Telegram Runner — Move communities onchain/i);
-  assert.match(html, /Move communities/i);
-  assert.match(html, /Reward real effort/i);
-  assert.match(html, /RUNNING, REFINED/i);
+  assert.match(html, /Stride — Move with purpose/i);
+  assert.match(html, /Make every/i);
+  assert.match(html, /STRIDE SIGNAL/i);
+  assert.match(html, /GLOBAL RUN CLUB/i);
   assert.doesNotMatch(html, /Project console/i);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/i);
 });
@@ -82,10 +82,12 @@ test("keeps simulated integrations explicit", async () => {
   const layout = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8");
   assert.match(layout, /telegram-web-app\.js/);
   const manifest = await readFile(new URL("../public/tonconnect-manifest.json", import.meta.url), "utf8");
-  assert.match(manifest, /Telegram Runner/);
+  assert.match(manifest, /"name": "Stride"/);
+  assert.match(manifest, /stride-logo-telegram-blue-v1\.png/);
   assert.match(manifest, /https:\/\/telegram-runner-design-lab\.shawn22222\.chatgpt\.site/);
   assert.match(page, /Activities saved/i);
-  assert.match(page, /DESIGN LAB/i);
+  assert.match(page, /STRIDE/);
+  assert.match(page, /Stride running experience/);
   assert.match(page, /Foreground only/i);
   assert.match(page, /RUN_STORAGE_KEY/);
   assert.match(page, /localStorage/);
@@ -98,6 +100,10 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /VERIFIED THIS WEEK/i);
   assert.match(page, /Run demo eligibility check/i);
   assert.match(page, /Connect a TON wallet/i);
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(css, /stride-hero/);
+  assert.match(css, /stride-logo-telegram-blue-v1\.png/);
+  assert.match(css, /@keyframes stride-orbit/);
   const previewFiles = await readdir(new URL("../app/_sites-preview", import.meta.url)).catch((error) => {
     if (error && error.code === "ENOENT") return [];
     throw error;

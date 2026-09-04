@@ -14,19 +14,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Telegram Runner — Move communities onchain",
+  title: "Stride — Move with purpose",
   description:
-    "TON-funded running campaigns with live activity tracking and transparent reward escrow.",
+    "A Telegram-native running experience with foreground GPS, private activity receipts, and optional TON rewards.",
   openGraph: {
-    title: "Telegram Runner — Move communities. Reward real effort.",
+    title: "Stride — Move with purpose.",
     description:
-      "TON-funded running campaigns inside Telegram, with foreground GPS and transparent reward escrow.",
+      "Foreground GPS running inside Telegram, private by default, with optional TON rewards.",
     images: [{ url: "/og.png", width: 1536, height: 1024 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Telegram Runner — Move communities. Reward real effort.",
-    description: "TON-funded running campaigns inside Telegram.",
+    title: "Stride — Move with purpose.",
+    description: "A Telegram-native running experience with optional TON rewards.",
     images: ["/og.png"],
   },
   icons: {

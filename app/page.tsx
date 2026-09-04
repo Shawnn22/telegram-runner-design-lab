@@ -86,12 +86,12 @@ export default function Home() {
   return (
     <main className="app-shell design-lab">
       <header className="topbar">
-        <Link className="brand" href="/" aria-label="Telegram Runner home">
-          <span className="brand-mark">R</span>
-          <span>RUNNER</span>
-          <Badge tone="neutral">TON</Badge><span className="lab-signal">DESIGN LAB</span>
+        <Link className="brand" href="/" aria-label="Stride home">
+          <span className="brand-mark">S</span>
+          <span className="brand-name">STRIDE</span>
+          <Badge tone="neutral">TON</Badge><span className="lab-signal">PRIVATE BETA</span>
         </Link>
-        <div className="user-flow-label"><b>RUNNING, REFINED</b><span>Start → record → save privately</span></div>
+        <div className="user-flow-label"><b>STRIDE SIGNAL</b><span>Start → record → save privately</span></div>
         <div className={`demo-pill ${telegramSession ? "telegram-session" : ""}`}><span /> {telegramSession ? "Telegram session" : "Browser preview"}</div>
       </header>
       <TonConnectUIProvider manifestUrl={TON_CONNECT_MANIFEST} actionsConfiguration={{ returnStrategy: "back" }}>
@@ -410,7 +410,7 @@ function RunnerApp() {
   return (
     <section className="runner-surface">
       <div className="runner-header">
-        <div className="runner-welcome"><div className="runner-avatar">R</div><div><Badge tone="blue">RUNNER · TON</Badge><h2>{savedRuns.length ? "Keep your rhythm." : "Your run starts here."}</h2><p>{savedRuns.length ? `${savedRuns.length} activity ${savedRuns.length === 1 ? "receipt" : "receipts"} saved this week.` : "No signup. No wallet. Just move."}</p></div></div>
+        <div className="runner-welcome"><div className="runner-avatar">S</div><div><Badge tone="blue">STRIDE · TON</Badge><h2>{savedRuns.length ? "Keep your signal moving." : "Your momentum starts here."}</h2><p>{savedRuns.length ? `${savedRuns.length} activity ${savedRuns.length === 1 ? "receipt" : "receipts"} saved this week.` : "No signup. No wallet. Just move."}</p></div></div>
         <div className="weekly-glance"><span>THIS WEEK</span><b>{verifiedDistance.toFixed(1)} <small>/ {campaign.goal} km</small></b><i><em style={{ width: `${weeklyProgress}%` }} /></i></div>
         <button className={`wallet-chip ${wallet ? "connected" : ""}`} onClick={() => setWalletSheet(true)}>{wallet ? `${walletAddress.slice(0, 4)}…${walletAddress.slice(-4)} · Connected` : "Connect TON wallet"}</button>
       </div>
@@ -420,6 +420,14 @@ function RunnerApp() {
         <button className={tab === "rewards" ? "active" : ""} onClick={() => setTab("rewards")}><i>✦</i>Rewards {savedRuns.length > 0 && rewardStatus !== "claimed" && <span>1</span>}</button>
       </nav>
       {tab === "run" && <>
+      <section className="stride-hero" aria-label="Stride running experience">
+        <div className="hero-noise" aria-hidden="true" />
+        <div className="hero-word hero-word-back" aria-hidden="true">STRIDE</div>
+        <div className="hero-word hero-word-front" aria-hidden="true">STRIDE</div>
+        <div className="hero-orbit orbit-one" aria-hidden="true" /><div className="hero-orbit orbit-two" aria-hidden="true" />
+        <div className="stride-hero-copy"><span className="hero-kicker"><i /> GLOBAL RUN CLUB</span><h1>Make every<br /><em>step</em> a signal.</h1><p>Move in the real world. Save a private proof. Let rewards find you after the run.</p><div className="hero-meta"><span>GPS-LED</span><span>PRIVATE BY DEFAULT</span><span>TON READY</span></div></div>
+        <div className="stride-logo-stage" role="img" aria-label="Stride logo in Telegram blue"><span>01</span><b>RUN / YOUR / WORLD</b></div>
+      </section>
       <section className="run-command-center" aria-label="Your running overview">
         <div className="command-distance"><span>THIS WEEK</span><strong>{verifiedDistance.toFixed(2)}</strong><small>KM RECORDED</small><i><em style={{ width: weeklyProgress + "%" }} /></i></div>
         <div className="command-plan"><div><span>TODAY&apos;S PLAN</span><b>{personalTarget}K {personalTarget === 2 ? "easy reset" : personalTarget === 5 ? "steady run" : "long effort"}</b><small>{latestSavedRun ? "Last receipt · " + latestSavedRun.distance.toFixed(2) + " km" : "Choose a target, then start when ready."}</small></div><div className="target-pills" role="group" aria-label="Personal run target">{[2, 5, 10].map((target) => <button key={target} className={personalTarget === target ? "active" : ""} onClick={() => setPersonalTarget(target)}>{target}K</button>)}</div></div>
@@ -427,7 +435,7 @@ function RunnerApp() {
       </section>
       <div className="run-journey" aria-label="How the runner flow works"><span className="journey-live"><i /> Live GPS session</span><span>Save private receipt</span><span>Check rewards later</span></div>
       <div className="start-panel quick-run-panel">
-        <div className="start-copy"><div className="ready-orbit"><i /><i /><span>R</span></div><span className="eyebrow">TODAY&apos;S RUN</span><h3>{remainingDistance ? "Your pace. Your moment." : "You finished the week strong."}</h3><p>{remainingDistance ? `${remainingDistance.toFixed(1)} km remains toward this week’s 5K. Your personal ${personalTarget}K plan is ready when GPS is ready.` : "Your weekly goal is complete. Keep the streak going with another easy run."}</p><div className="run-intent"><span><b>Foreground only</b><small>We pause when Telegram closes</small></span><span><b>Private receipt</b><small>Route points are discarded</small></span></div></div>
+        <div className="start-copy"><div className="ready-orbit"><i /><i /><span>S</span></div><span className="eyebrow">TODAY&apos;S RUN</span><h3>{remainingDistance ? "Your pace. Your moment." : "You finished the week strong."}</h3><p>{remainingDistance ? `${remainingDistance.toFixed(1)} km remains toward this week’s 5K. Your personal ${personalTarget}K plan is ready when GPS is ready.` : "Your weekly goal is complete. Keep the streak going with another easy run."}</p><div className="run-intent"><span><b>Foreground only</b><small>We pause when Telegram closes</small></span><span><b>Private receipt</b><small>Route points are discarded</small></span></div></div>
         <div className="start-control"><div className="gps-readiness"><span className="gps-dot" /><div><b>{trackingMode === "live" ? "GPS will check when you start" : "Demo route ready"}</b><small>{trackingMode === "live" ? "Telegram first, then device GPS automatically" : "For UI testing only"}</small></div></div><div className="mode-toggle"><button className={trackingMode === "live" ? "active" : ""} onClick={() => selectTrackingMode("live")}><i>⌖</i><b>Live GPS</b><span>Telegram or device</span></button><button className={trackingMode === "demo" ? "active" : ""} onClick={() => selectTrackingMode("demo")}><i>◷</i><b>Demo route</b><span>Time-compressed</span></button></div><div className="gps-start-actions">{trackingMode === "live" && <p className="gps-access-note" role="status"><span className="signal-dot" />{gpsStatus}{locationBlocked && telegramLocationManager.current && <button className="text-button" onClick={() => telegramLocationManager.current?.openSettings()}>Open Telegram settings</button>}</p>}<button className="button button-primary start-run" onClick={startRun}><span className="start-icon">⌖</span>{trackingMode === "live" ? "Start live run" : "Start quick run"} <span>→</span></button></div></div>
       </div>
       <div className="section-kicker"><span>OPEN CHALLENGE</span><small>Rewards are optional. Your run is the main event.</small></div><div className="campaign-feature">
