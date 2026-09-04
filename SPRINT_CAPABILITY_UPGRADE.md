@@ -15,6 +15,8 @@ Make the Design Lab behave like a usable foreground running app without adding a
 - Active-session recovery after reload; raw route points exist only while the session is active and are deleted at finish.
 - Kilometer splits, average pace, longest run, current streak and best pace.
 - Rich run summary, activity verification states and Telegram/native sharing.
+- Pre-run workout selection for Easy, Tempo and Long runs; the choice is retained in each activity receipt.
+- Seven-day journey visualization and three progressive runner milestones in Run History.
 - Automatic reward matching when the Rewards tab opens; wallet remains claim-only.
 
 ## Explicit demo or external-infrastructure boundaries

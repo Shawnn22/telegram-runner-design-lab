@@ -69,6 +69,10 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /route-energy-stage/);
   assert.doesNotMatch(page, /stride-logo-stage/);
   assert.match(page, /Recent movement/);
+  assert.match(page, /Choose workout type/);
+  assert.match(page, /activityType: ActivityType/);
+  assert.match(page, /Seven day running journey/);
+  assert.match(page, /Built by showing up/);
   assert.match(page, /function RunDetail/);
   assert.match(page, /Filter run history/);
   assert.match(page, /Verification timeline/);
