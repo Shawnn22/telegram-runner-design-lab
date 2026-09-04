@@ -66,6 +66,13 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /Auto-paused · movement stopped/);
   assert.match(page, /tracking-stats-three/);
   assert.match(page, /KILOMETER SPLITS/);
+  assert.match(page, /route-energy-stage/);
+  assert.doesNotMatch(page, /stride-logo-stage/);
+  assert.match(page, /Recent movement/);
+  assert.match(page, /function RunDetail/);
+  assert.match(page, /Filter run history/);
+  assert.match(page, /Verification timeline/);
+  assert.match(page, /View reward matches/);
   assert.match(page, /navigator\.share/);
   assert.match(page, /setRewardStatus\(verifiedDistance >= campaign\.goal/);
   assert.match(page, /verification: riskReasons\.length/);
@@ -100,7 +107,7 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(manifest, /"name": "Stride"/);
   assert.match(manifest, /stride-logo-telegram-blue-v1\.png/);
   assert.match(manifest, /https:\/\/telegram-runner-design-lab\.shawn22222\.chatgpt\.site/);
-  assert.match(page, /Activities saved/i);
+  assert.match(page, /Run history/i);
   assert.match(page, /STRIDE/);
   assert.match(page, /Stride running experience/);
   assert.match(page, /brand-logo/);
@@ -110,9 +117,9 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /clearRunHistory/);
   assert.match(page, /Personal run target/);
   assert.match(page, /TODAY(?:'|&apos;)S PLAN/);
-  assert.match(page, /Raw GPS points were discarded/i);
+  assert.match(page, /Raw coordinates are not retained/i);
   assert.match(page, /Campaign auto-match/i);
-  assert.match(page, /Several activity receipts can contribute/i);
+  assert.match(page, /Verified receipts are matched later/i);
   assert.match(page, /VERIFIED THIS WEEK/i);
   assert.match(page, /Run demo eligibility check/i);
   assert.match(page, /Connect a TON wallet/i);
