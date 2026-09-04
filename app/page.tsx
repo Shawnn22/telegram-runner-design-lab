@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { LiveRunMap } from "./live-run-map";
 import { TonConnectButton, TonConnectUIProvider, useTonAddress, useTonWallet } from "@tonconnect/ui-react";
 import {
   getTelegramLocationManager,
@@ -59,16 +60,6 @@ function formatTime(seconds: number) {
   return `${mins}:${secs}`;
 }
 
-function liveMapUrl(point: Point) {
-  const latitudeSpan = Math.max(0.003, Math.min(0.02, ((point.accuracy ?? 35) / 111_000) * 8));
-  const longitudeSpan = latitudeSpan / Math.max(0.3, Math.cos((point.latitude * Math.PI) / 180));
-  const west = point.longitude - longitudeSpan;
-  const east = point.longitude + longitudeSpan;
-  const south = point.latitude - latitudeSpan;
-  const north = point.latitude + latitudeSpan;
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${west.toFixed(6)}%2C${south.toFixed(6)}%2C${east.toFixed(6)}%2C${north.toFixed(6)}&layer=mapnik&marker=${point.latitude.toFixed(6)}%2C${point.longitude.toFixed(6)}`;
-}
-
 function Badge({ children, tone = "blue" }: { children: React.ReactNode; tone?: "blue" | "green" | "amber" | "neutral" }) {
   return <span className={`badge badge-${tone}`}>{children}</span>;
 }
@@ -113,6 +104,7 @@ function RunnerApp() {
   const [seconds, setSeconds] = useState(0);
   const [distance, setDistance] = useState(0);
   const [livePoint, setLivePoint] = useState<Point | null>(null);
+  const [routePoints, setRoutePoints] = useState<Point[]>([]);
   const [gpsStatus, setGpsStatus] = useState("Ready to request live GPS");
   const [locationBlocked, setLocationBlocked] = useState(false);
   const [savedRuns, setSavedRuns] = useState<SavedRun[]>([]);
@@ -172,7 +164,9 @@ function RunnerApp() {
   function recordLocation(next: Point, source: "Telegram" | "Device") {
     const accuracy = next.accuracy ?? Number.POSITIVE_INFINITY;
     if (accuracy > 65) {
-      setGpsStatus(`${source} GPS is searching for a stronger signal`);
+      setLivePoint(next);
+      setGpsLocked(false);
+      setGpsStatus(`${source} found you · improving accuracy (±${Math.round(accuracy)}m)`);
       return;
     }
 
@@ -189,8 +183,9 @@ function RunnerApp() {
     }
 
     lastPoint.current = next;
-    setGpsLocked(true);
     setLivePoint(next);
+    setGpsLocked(true);
+    setRoutePoints((points) => [...points.slice(-499), next]);
     setGpsStatus(`${source} GPS · ±${Math.round(accuracy)}m`);
   }
 
@@ -200,6 +195,7 @@ function RunnerApp() {
       setSeconds(0);
       setDistance(0);
       setLivePoint(null);
+      setRoutePoints([]);
       setGpsLocked(false);
     }
     lastPoint.current = null;
@@ -216,7 +212,8 @@ function RunnerApp() {
     liveSessionId.current += 1;
     clearLiveLocation();
     setTracking(false);
-    setStage("ready");
+    setPaused(true);
+    setStage("tracking");
     setLocationBlocked(canOpenSettings);
     setGpsStatus(message);
   }
@@ -241,7 +238,7 @@ function RunnerApp() {
     };
 
     const receivedFirstFix = await readLocation();
-    if (receivedFirstFix && sessionId === liveSessionId.current && lastPoint.current) {
+    if (receivedFirstFix && sessionId === liveSessionId.current) {
       telegramPollId.current = window.setInterval(() => void readLocation(), 5000);
     }
     return receivedFirstFix;
@@ -264,6 +261,7 @@ function RunnerApp() {
         }, "Device");
       },
       (error) => {
+        console.warn("[stride-gps] device location failed", { code: error.code, message: error.message });
         if (sessionId === liveSessionId.current) stopUnavailableGps(error.code === error.PERMISSION_DENIED ? "Allow location access in your device settings to run live" : "GPS signal unavailable — move outdoors and try again");
       },
       { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
@@ -277,6 +275,7 @@ function RunnerApp() {
       telegramLocationManager.current = manager;
       void startTelegramGps(manager, reset).then((receivedFix) => {
         if (!receivedFix && liveSessionId.current > 0) {
+          console.warn("[stride-gps] Telegram location unavailable; falling back to device geolocation");
           setGpsStatus("Telegram GPS timed out — using device GPS instead");
           startDeviceGps(reset);
         }
@@ -294,6 +293,7 @@ function RunnerApp() {
     setSeconds(0);
     setDistance(0);
     setLivePoint(null);
+    setRoutePoints([]);
     setGpsLocked(false);
     lastPoint.current = null;
     liveSessionId.current += 1;
@@ -388,13 +388,12 @@ function RunnerApp() {
       <section className="runner-surface tracking-surface">
         <div className="runner-topline"><button className="text-button" onClick={stopRun}>Finish & save</button><Badge tone={paused ? "amber" : trackingMode === "live" ? "green" : "amber"}>{paused ? "PAUSED" : trackingMode === "live" ? "LIVE GPS" : "DEMO ROUTE"}</Badge></div>
         <div className={`tracking-map ${trackingMode === "live" ? "live-map" : "demo-map"}`}>
-          <div className="map-grid" />
-          {trackingMode === "live" && livePoint && <iframe className="live-map-frame" title="Your live GPS location" src={liveMapUrl(livePoint)} referrerPolicy="no-referrer" />}
-          {trackingMode === "live" && !livePoint && <div className="live-map-wait"><b>{paused ? "Run paused" : "Finding your GPS…"}</b><span>{paused ? "Tap resume when you are ready to keep running." : "We will switch to device GPS automatically if Telegram does not reply."}</span>{!paused && <button className="gps-retry" onClick={() => startDeviceGps(true)}>Use device GPS now</button>}{locationBlocked && telegramLocationManager.current && <button className="gps-retry" onClick={() => telegramLocationManager.current?.openSettings()}>Open Telegram settings</button>}</div>}
+          {trackingMode === "live" && <LiveRunMap latestPoint={livePoint} routePoints={routePoints} />}
+          {trackingMode === "live" && !gpsLocked && <div className="gps-action-card"><b>{paused ? "Location needs attention" : livePoint ? "Improving GPS accuracy…" : "Finding your GPS…"}</b><span>{paused ? "Allow location access, then retry without leaving this run." : livePoint ? "Your map is visible; distance starts after a stable fix." : "The map is ready while Telegram or device GPS finds you."}</span><div>{!tracking && <button className="gps-retry" onClick={() => startLiveGps(false)}>Retry GPS</button>}{tracking && !livePoint && <button className="gps-retry" onClick={() => startDeviceGps(false)}>Use device GPS</button>}{locationBlocked && telegramLocationManager.current && <button className="gps-retry" onClick={() => telegramLocationManager.current?.openSettings()}>Open Telegram settings</button>}</div></div>}
+          {trackingMode === "demo" && <div className="map-grid" />}
           {trackingMode === "demo" && <><span className="track-line track-one" /><span className="track-line track-two" /><span className="track-line track-three" /><span className="track-line track-four" /></>}
           <span className="runner-pulse"><i /></span>
           <div className="gps-chip"><span className={paused ? "gps-dot paused" : gpsLocked ? "gps-dot" : "gps-dot searching"} />{gpsStatus}</div>
-          {trackingMode === "live" && livePoint && <a className="map-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>}
         </div>
         <div className="tracking-panel">
           <div className="tracking-primary"><span className="run-label">{trackingMode === "live" ? gpsLocked ? "GPS LOCKED · RECORDING" : "WAITING FOR GPS LOCK" : "DEMO SESSION"}</span><strong>{distance.toFixed(2)}</strong><span>KILOMETERS</span></div>
