@@ -305,3 +305,12 @@
 @keyframes runner-map-pulse{to{transform:scale(1.45);opacity:0}}@keyframes map-spin{to{transform:rotate(360deg)}}
 @media(max-width:600px){.gps-action-card{right:12px;bottom:66px}.map-state-card{top:12px;left:12px}.map-recenter{right:12px;bottom:16px}}
 @media(prefers-reduced-motion:reduce){.runner-map-marker:after,.map-state-spinner{animation:none}}
+
+
+/* Runner capability upgrade: countdown, live splits, recovery and richer receipts */
+.run-countdown{position:absolute;z-index:8;inset:0;display:grid;place-content:center;text-align:center;border-radius:0 0 25px 25px;background:rgba(242,251,255,.88);backdrop-filter:blur(12px)}
+.run-countdown span{color:#1687cd;font-size:10px;font-weight:900;letter-spacing:.22em}.run-countdown b{color:#092d52;font-size:88px;line-height:1;text-shadow:0 13px 32px rgba(42,171,238,.18)}
+.tracking-stats-three{grid-template-columns:repeat(3,1fr)!important}.live-splits{display:flex;align-items:center;justify-content:space-between;margin:-8px 0 17px;padding:10px 13px;border:1px solid #d8edf7;border-radius:13px;background:#f4fbff;color:#54758d}.live-splits span{font-size:9px;font-weight:850;letter-spacing:.09em}.live-splits b{color:#0d6fa8;font-size:18px}
+.summary-detail-grid,.activity-insights{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:13px 0}.summary-detail-grid>div,.activity-insights>div{display:flex;flex-direction:column;gap:5px;padding:14px;border:1px solid #d9ebf4;border-radius:15px;background:#f6fbfe}.summary-detail-grid span,.activity-insights span{color:#70889c;font-size:8px;font-weight:900;letter-spacing:.11em}.summary-detail-grid b,.activity-insights b{color:#103e60;font-size:17px}
+.split-list{margin:14px 0;padding:17px;border:1px solid #d7eaf4;border-radius:17px;background:#fff}.split-list>.eyebrow{display:block;margin-bottom:8px}.split-list>div{display:flex;align-items:center;justify-content:space-between;padding:9px 2px;border-top:1px solid #e5f0f5;color:#607b8f;font-size:10px}.split-list>div b{color:#0b4971;font-size:15px}.review-note{display:flex;flex-direction:column;gap:4px;margin:12px 0;padding:13px 15px;border:1px solid #f1d1a9;border-radius:14px;background:#fff8ec;color:#9a6120}.review-note b{font-size:11px}.review-note span{font-size:9px}
+@media(max-width:600px){.tracking-stats-three{gap:5px!important}.tracking-stats-three strong{font-size:18px!important}.summary-detail-grid,.activity-insights{gap:6px}.summary-detail-grid>div,.activity-insights>div{padding:11px 9px}.summary-detail-grid b,.activity-insights b{font-size:14px}.run-countdown b{font-size:72px}}

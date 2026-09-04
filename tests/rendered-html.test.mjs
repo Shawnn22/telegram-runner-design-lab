@@ -61,6 +61,14 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /Use device GPS/);
   assert.match(page, /GPS LOCKED · RECORDING/);
   assert.match(page, /setGpsLocked\(true\)/);
+  assert.match(page, /ACTIVE_RUN_KEY/);
+  assert.match(page, /AUTO_PAUSE_MS/);
+  assert.match(page, /Auto-paused · movement stopped/);
+  assert.match(page, /tracking-stats-three/);
+  assert.match(page, /KILOMETER SPLITS/);
+  assert.match(page, /navigator\.share/);
+  assert.match(page, /setRewardStatus\(verifiedDistance >= campaign\.goal/);
+  assert.match(page, /verification: riskReasons\.length/);
   assert.match(page, /Tap Finish again to save/);
   assert.match(page, /resumeRun/);
   assert.match(page, /visibilitychange/);

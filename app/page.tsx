@@ -26,8 +26,26 @@ type Point = {
 type SavedRun = {
   distance: number;
   seconds: number;
+  movingSeconds: number;
+  elapsedSeconds: number;
   mode: "demo" | "live";
   proofId: string;
+  startedAt: number;
+  endedAt: number;
+  splits: number[];
+  avgAccuracy: number | null;
+  verification: "verified" | "review";
+  riskReasons: string[];
+};
+
+type ActiveRun = {
+  distance: number;
+  seconds: number;
+  elapsedSeconds: number;
+  mode: "demo" | "live";
+  startedAt: number;
+  routePoints: Point[];
+  splits: number[];
 };
 
 const campaign = {
@@ -41,6 +59,8 @@ const campaign = {
 
 const TON_CONNECT_MANIFEST = "https://telegram-runner-design-lab.shawn22222.chatgpt.site/tonconnect-manifest.json";
 const RUN_STORAGE_KEY = "telegram-runner-design-lab.runs.v1";
+const ACTIVE_RUN_KEY = "telegram-runner-design-lab.active-run.v1";
+const AUTO_PAUSE_MS = 20_000;
 
 function haversineKm(a: Point, b: Point) {
   const radius = 6371;
@@ -57,7 +77,48 @@ function haversineKm(a: Point, b: Point) {
 function formatTime(seconds: number) {
   const mins = Math.floor(seconds / 60).toString().padStart(2, "0");
   const secs = (seconds % 60).toString().padStart(2, "0");
-  return `${mins}:${secs}`;
+  return mins + ":" + secs;
+}
+
+function formatPace(seconds: number, distance: number) {
+  return distance > 0 ? formatTime(Math.round(seconds / distance)) : "--:--";
+}
+
+function currentStreak(runs: SavedRun[]) {
+  const days = [...new Set(runs.map((run) => new Date(run.endedAt).toISOString().slice(0, 10)))].sort().reverse();
+  if (!days.length) return 0;
+  let streak = 1;
+  for (let index = 1; index < days.length; index += 1) {
+    const newer = new Date(days[index - 1]);
+    const older = new Date(days[index]);
+    if ((newer.getTime() - older.getTime()) / 86_400_000 !== 1) break;
+    streak += 1;
+  }
+  return streak;
+}
+
+function triggerHaptic(type: "light" | "medium" | "success" = "light") {
+  const telegram = (window as typeof window & { Telegram?: { WebApp?: { HapticFeedback?: { impactOccurred?: (style: string) => void; notificationOccurred?: (type: string) => void } } } }).Telegram;
+  if (type === "success") telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success");
+  else telegram?.WebApp?.HapticFeedback?.impactOccurred?.(type);
+}
+
+function normalizeRun(run: Partial<SavedRun>): SavedRun | null {
+  if (typeof run.distance !== "number" || typeof run.seconds !== "number" || typeof run.proofId !== "string") return null;
+  return {
+    distance: run.distance,
+    seconds: run.seconds,
+    movingSeconds: run.movingSeconds ?? run.seconds,
+    elapsedSeconds: run.elapsedSeconds ?? run.seconds,
+    mode: run.mode === "live" ? "live" : "demo",
+    proofId: run.proofId,
+    startedAt: run.startedAt ?? Date.now(),
+    endedAt: run.endedAt ?? Date.now(),
+    splits: Array.isArray(run.splits) ? run.splits : [],
+    avgAccuracy: typeof run.avgAccuracy === "number" ? run.avgAccuracy : null,
+    verification: run.verification === "review" ? "review" : "verified",
+    riskReasons: Array.isArray(run.riskReasons) ? run.riskReasons.filter((item): item is string => typeof item === "string") : [],
+  };
 }
 
 function Badge({ children, tone = "blue" }: { children: React.ReactNode; tone?: "blue" | "green" | "amber" | "neutral" }) {
@@ -102,7 +163,12 @@ function RunnerApp() {
   const [finishArmed, setFinishArmed] = useState(false);
   const [latestRun, setLatestRun] = useState<SavedRun | null>(null);
   const [seconds, setSeconds] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [distance, setDistance] = useState(0);
+  const [splits, setSplits] = useState<number[]>([]);
+  const [accuracySamples, setAccuracySamples] = useState<number[]>([]);
+  const [countdown, setCountdown] = useState(0);
+  const [autoPaused, setAutoPaused] = useState(false);
   const [livePoint, setLivePoint] = useState<Point | null>(null);
   const [routePoints, setRoutePoints] = useState<Point[]>([]);
   const [gpsStatus, setGpsStatus] = useState("Ready to request live GPS");
@@ -116,17 +182,58 @@ function RunnerApp() {
   const telegramPollId = useRef<number | null>(null);
   const telegramLocationManager = useRef<TelegramLocationManager | null>(null);
   const liveSessionId = useRef(0);
+  const startedAt = useRef(Date.now());
+  const lastMovementAt = useRef(Date.now());
+  const splitStartedAtSeconds = useRef(0);
+  const secondsRef = useRef(0);
+  const rejectedPoints = useRef(0);
   const wallet = useTonWallet();
   const walletAddress = useTonAddress();
 
+  useEffect(() => { secondsRef.current = seconds; }, [seconds]);
+
   useEffect(() => {
-    if (!tracking || (trackingMode === "live" && !gpsLocked)) return;
+    if (!tracking || countdown > 0) return;
     const timer = window.setInterval(() => {
-      setSeconds((value) => value + 1);
+      setElapsedSeconds((value) => value + 1);
+      if (trackingMode === "demo" || gpsLocked) setSeconds((value) => value + 1);
       if (trackingMode === "demo") setDistance((value) => Math.min(campaign.goal, value + 0.085));
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [tracking, trackingMode, gpsLocked]);
+  }, [tracking, trackingMode, gpsLocked, countdown]);
+
+  useEffect(() => {
+    if (!tracking || countdown > 0) return;
+    const completedKm = Math.floor(distance);
+    if (completedKm > splits.length) {
+      const splitSeconds = Math.max(1, seconds - splitStartedAtSeconds.current);
+      splitStartedAtSeconds.current = seconds;
+      setSplits((values) => [...values, splitSeconds]);
+      triggerHaptic("medium");
+    }
+  }, [distance, seconds, splits.length, tracking, countdown]);
+
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const timer = window.setTimeout(() => {
+      setCountdown((value) => Math.max(0, value - 1));
+      if (countdown === 1) triggerHaptic("medium");
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [countdown]);
+
+  useEffect(() => {
+    if (!tracking || trackingMode !== "live" || !gpsLocked || distance < 0.02) return;
+    const timer = window.setInterval(() => {
+      if (Date.now() - lastMovementAt.current >= AUTO_PAUSE_MS) {
+        setAutoPaused(true);
+        pauseRun("Auto-paused · movement stopped");
+      }
+    }, 3000);
+    return () => window.clearInterval(timer);
+    // pauseRun intentionally reads the latest session refs; restarting this timer on every render would postpone auto-pause.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tracking, trackingMode, gpsLocked, distance]);
 
   useEffect(() => () => clearLiveLocation(), []);
 
@@ -136,12 +243,32 @@ function RunnerApp() {
         const stored = window.localStorage.getItem(RUN_STORAGE_KEY);
         if (stored) {
           const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) {
-            setSavedRuns(parsed.filter((run): run is SavedRun => Boolean(run && typeof run.distance === "number" && typeof run.seconds === "number" && typeof run.proofId === "string")));
+          if (Array.isArray(parsed)) setSavedRuns(parsed.map((run) => normalizeRun(run)).filter((run): run is SavedRun => Boolean(run)));
+        }
+      } catch {
+        // A malformed history never blocks running.
+      }
+      try {
+        const activeRaw = window.localStorage.getItem(ACTIVE_RUN_KEY);
+        if (activeRaw) {
+          const active = JSON.parse(activeRaw) as ActiveRun;
+          if (active && typeof active.distance === "number" && typeof active.startedAt === "number") {
+            setDistance(active.distance);
+            setSeconds(active.seconds ?? 0);
+            setElapsedSeconds(active.elapsedSeconds ?? active.seconds ?? 0);
+            setTrackingMode(active.mode === "demo" ? "demo" : "live");
+            setRoutePoints(Array.isArray(active.routePoints) ? active.routePoints.slice(-500) : []);
+            setSplits(Array.isArray(active.splits) ? active.splits : []);
+            splitStartedAtSeconds.current = (Array.isArray(active.splits) ? active.splits : []).reduce((total, value) => total + value, 0);
+            startedAt.current = active.startedAt;
+            setStage("tracking");
+            setPaused(true);
+            setTracking(false);
+            setGpsStatus("Recovered run · tap Resume to continue");
           }
         }
       } catch {
-        // A private local history is optional. A malformed value never blocks running.
+        window.localStorage.removeItem(ACTIVE_RUN_KEY);
       } finally {
         setHasLoadedRuns(true);
       }
@@ -153,6 +280,12 @@ function RunnerApp() {
     if (!hasLoadedRuns) return;
     window.localStorage.setItem(RUN_STORAGE_KEY, JSON.stringify(savedRuns));
   }, [hasLoadedRuns, savedRuns]);
+
+  useEffect(() => {
+    if (stage !== "tracking") return;
+    const active: ActiveRun = { distance, seconds, elapsedSeconds, mode: trackingMode, startedAt: startedAt.current, routePoints, splits };
+    window.localStorage.setItem(ACTIVE_RUN_KEY, JSON.stringify(active));
+  }, [stage, distance, seconds, elapsedSeconds, trackingMode, routePoints, splits]);
 
   function clearLiveLocation() {
     if (watchId.current !== null && navigator.geolocation) navigator.geolocation.clearWatch(watchId.current);
@@ -169,17 +302,27 @@ function RunnerApp() {
       setGpsStatus(`${source} found you · improving accuracy (±${Math.round(accuracy)}m)`);
       return;
     }
+    if (Number.isFinite(accuracy)) setAccuracySamples((samples) => [...samples.slice(-49), accuracy]);
 
     const previous = lastPoint.current;
     if (previous) {
       const delta = haversineKm(previous, next);
       const elapsedSeconds = Math.max(1, (next.timestamp - previous.timestamp) / 1000);
       const speedKmh = (delta / elapsedSeconds) * 3600;
-      if (delta >= 0.003 && delta < 0.25 && speedKmh <= 28) setDistance((value) => value + delta);
+      if (delta < 0.003) {
+        setLivePoint(next);
+        setGpsLocked(true);
+        setGpsStatus(`${source} GPS · collecting movement (±${Math.round(accuracy)}m)`);
+        return;
+      }
       if (delta >= 0.25 || speedKmh > 28) {
+        rejectedPoints.current += 1;
         setGpsStatus(`${source} GPS ignored an implausible jump`);
         return;
       }
+      lastMovementAt.current = Date.now();
+      setAutoPaused(false);
+      setDistance((value) => value + delta);
     }
 
     lastPoint.current = next;
@@ -193,13 +336,23 @@ function RunnerApp() {
     liveSessionId.current += 1;
     if (reset) {
       setSeconds(0);
+      setElapsedSeconds(0);
       setDistance(0);
+      setSplits([]);
+      setAccuracySamples([]);
+      setCountdown(3);
+      setAutoPaused(false);
+      splitStartedAtSeconds.current = 0;
+      rejectedPoints.current = 0;
+      startedAt.current = Date.now();
+      lastMovementAt.current = Date.now();
       setLivePoint(null);
       setRoutePoints([]);
       setGpsLocked(false);
     }
     lastPoint.current = null;
     setLocationBlocked(false);
+    if (!reset) setCountdown(0);
     setPaused(false);
     setFinishArmed(false);
     setStage("tracking");
@@ -291,7 +444,16 @@ function RunnerApp() {
       return;
     }
     setSeconds(0);
+    setElapsedSeconds(0);
     setDistance(0);
+    setSplits([]);
+    setAccuracySamples([]);
+    setCountdown(3);
+    setAutoPaused(false);
+    splitStartedAtSeconds.current = 0;
+    rejectedPoints.current = 0;
+    startedAt.current = Date.now();
+    lastMovementAt.current = Date.now();
     setLivePoint(null);
     setRoutePoints([]);
     setGpsLocked(false);
@@ -321,6 +483,7 @@ function RunnerApp() {
     liveSessionId.current += 1;
     setTracking(false);
     clearLiveLocation();
+    window.localStorage.removeItem(ACTIVE_RUN_KEY);
     if (distance < 0.02 || seconds < 10) {
       setStage("ready");
       setPaused(false);
@@ -329,8 +492,29 @@ function RunnerApp() {
     }
     lastPoint.current = null;
     setLivePoint(null);
-    const receipt = { distance, seconds, mode: trackingMode, proofId: `RUN-${Date.now().toString(36).toUpperCase()}` } as SavedRun;
+    setRoutePoints([]);
+    const avgAccuracy = accuracySamples.length ? accuracySamples.reduce((total, value) => total + value, 0) / accuracySamples.length : null;
+    const riskReasons = [
+      ...(avgAccuracy !== null && avgAccuracy > 50 ? ["Low GPS precision"] : []),
+      ...(rejectedPoints.current >= 3 ? ["Multiple GPS jumps rejected"] : []),
+    ];
+    const endedAt = Date.now();
+    const receipt: SavedRun = {
+      distance,
+      seconds,
+      movingSeconds: seconds,
+      elapsedSeconds: Math.max(elapsedSeconds, seconds),
+      mode: trackingMode,
+      proofId: `RUN-${endedAt.toString(36).toUpperCase()}`,
+      startedAt: startedAt.current,
+      endedAt,
+      splits,
+      avgAccuracy,
+      verification: riskReasons.length ? "review" : "verified",
+      riskReasons,
+    };
     setSavedRuns((runs) => [receipt, ...runs]);
+    triggerHaptic("success");
     setLatestRun(receipt);
     setRewardStatus("checking");
     setStage("summary");
@@ -352,10 +536,12 @@ function RunnerApp() {
     setTracking(false);
     setFinishArmed(false);
     setPaused(true);
+    triggerHaptic("light");
     setGpsStatus(reason);
   }
 
   function resumeRun() {
+    setAutoPaused(false);
     if (trackingMode === "live") {
       startLiveGps(false);
       return;
@@ -373,20 +559,36 @@ function RunnerApp() {
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   });
 
-  const pace = distance > 0 ? Math.max(4, seconds / 60 / distance) : 0;
-  const verifiedDistance = savedRuns.reduce((total, run) => total + run.distance, 0);
+  const verifiedRuns = savedRuns.filter((run) => run.verification === "verified");
+  const verifiedDistance = verifiedRuns.reduce((total, run) => total + run.distance, 0);
+  const longestRun = savedRuns.reduce((best, run) => Math.max(best, run.distance), 0);
+  const bestPaceRun = savedRuns.filter((run) => run.distance > 0).sort((a, b) => a.seconds / a.distance - b.seconds / b.distance)[0] ?? null;
+  const streak = currentStreak(savedRuns);
   const weeklyProgress = Math.min(100, (verifiedDistance / campaign.goal) * 100);
   const remainingDistance = Math.max(0, campaign.goal - verifiedDistance);
   const latestSavedRun = savedRuns[0] ?? null;
 
+  useEffect(() => {
+    if (tab !== "rewards" || !savedRuns.length || rewardStatus !== "checking") return;
+    const timer = window.setTimeout(() => setRewardStatus(verifiedDistance >= campaign.goal * 0.95 ? "eligible" : "more-running"), 900);
+    return () => window.clearTimeout(timer);
+  }, [tab, savedRuns.length, verifiedDistance, rewardStatus]);
+
+  function shareRun(run: SavedRun) {
+    const text = "I ran " + run.distance.toFixed(2) + " km with Stride in " + formatTime(run.movingSeconds) + ". Proof " + run.proofId + ".";
+    triggerHaptic("light");
+    if (navigator.share) void navigator.share({ title: "Stride run", text, url: window.location.origin }).catch(() => undefined);
+    else window.open("https://t.me/share/url?url=" + encodeURIComponent(window.location.origin) + "&text=" + encodeURIComponent(text), "_blank", "noopener,noreferrer");
+  }
+
   if (stage === "summary" && latestRun) {
-    return <RunSummary run={latestRun} onContinue={() => { setLatestRun(null); setStage("ready"); setTab("run"); }} onActivity={() => { setLatestRun(null); setStage("ready"); setTab("activity"); }} onRewards={() => { setLatestRun(null); setStage("ready"); setTab("rewards"); }} />;
+    return <RunSummary run={latestRun} onShare={() => shareRun(latestRun)} onContinue={() => { setLatestRun(null); setStage("ready"); setTab("run"); }} onActivity={() => { setLatestRun(null); setStage("ready"); setTab("activity"); }} onRewards={() => { setLatestRun(null); setStage("ready"); setTab("rewards"); }} />;
   }
 
   if (stage === "tracking") {
     return (
       <section className="runner-surface tracking-surface">
-        <div className="runner-topline"><button className="text-button" onClick={stopRun}>Finish & save</button><Badge tone={paused ? "amber" : trackingMode === "live" ? "green" : "amber"}>{paused ? "PAUSED" : trackingMode === "live" ? "LIVE GPS" : "DEMO ROUTE"}</Badge></div>
+        <div className="runner-topline"><button className="text-button" onClick={stopRun}>Finish & save</button><Badge tone={paused ? "amber" : trackingMode === "live" ? "green" : "amber"}>{paused ? autoPaused ? "AUTO-PAUSED" : "PAUSED" : trackingMode === "live" ? "LIVE GPS" : "DEMO ROUTE"}</Badge></div>
         <div className={`tracking-map ${trackingMode === "live" ? "live-map" : "demo-map"}`}>
           {trackingMode === "live" && <LiveRunMap latestPoint={livePoint} routePoints={routePoints} />}
           {trackingMode === "live" && !gpsLocked && <div className="gps-action-card"><b>{paused ? "Location needs attention" : livePoint ? "Improving GPS accuracy…" : "Finding your GPS…"}</b><span>{paused ? "Allow location access, then retry without leaving this run." : livePoint ? "Your map is visible; distance starts after a stable fix." : "The map is ready while Telegram or device GPS finds you."}</span><div>{!tracking && <button className="gps-retry" onClick={() => startLiveGps(false)}>Retry GPS</button>}{tracking && !livePoint && <button className="gps-retry" onClick={() => startDeviceGps(false)}>Use device GPS</button>}{locationBlocked && telegramLocationManager.current && <button className="gps-retry" onClick={() => telegramLocationManager.current?.openSettings()}>Open Telegram settings</button>}</div></div>}
@@ -396,8 +598,9 @@ function RunnerApp() {
           <div className="gps-chip"><span className={paused ? "gps-dot paused" : gpsLocked ? "gps-dot" : "gps-dot searching"} />{gpsStatus}</div>
         </div>
         <div className="tracking-panel">
+          {countdown > 0 && <div className="run-countdown" aria-live="assertive"><span>GET READY</span><b>{countdown}</b></div>}
           <div className="tracking-primary"><span className="run-label">{trackingMode === "live" ? gpsLocked ? "GPS LOCKED · RECORDING" : "WAITING FOR GPS LOCK" : "DEMO SESSION"}</span><strong>{distance.toFixed(2)}</strong><span>KILOMETERS</span></div>
-          <div className="tracking-secondary"><div><strong>{formatTime(seconds)}</strong><span>ELAPSED</span></div><div><strong>{pace ? `${Math.floor(pace)}:${Math.round((pace % 1) * 60).toString().padStart(2, "0")}` : "--:--"}</strong><span>AVG PACE /KM</span></div></div>
+          <div className="tracking-secondary tracking-stats-three"><div><strong>{formatTime(seconds)}</strong><span>MOVING</span></div><div><strong>{formatTime(elapsedSeconds)}</strong><span>ELAPSED</span></div><div><strong>{formatPace(seconds, distance)}</strong><span>PACE /KM</span></div></div>{splits.length > 0 && <div className="live-splits"><span>LATEST SPLIT · KM {splits.length}</span><b>{formatTime(splits[splits.length - 1])}</b></div>}
           <div className="goal-progress"><span style={{ width: `${Math.min(100, (distance / campaign.goal) * 100)}%` }} /><b>{Math.min(100, Math.round((distance / campaign.goal) * 100))}% toward an available 5K reward</b></div>
           <div className="run-controls">{paused ? <button className="resume-button" onClick={resumeRun}><span>▶</span> Resume run</button> : <button className="pause-button" onClick={() => pauseRun()}><span>Ⅱ</span> Pause</button>}<button className={`stop-button ${finishArmed ? "armed" : ""}`} onClick={stopRun}><span>■</span>{finishArmed ? " Tap again to save" : " Finish run"}</button></div>
         </div>
@@ -429,7 +632,7 @@ function RunnerApp() {
       <section className="run-command-center" aria-label="Your running overview">
         <div className="command-distance"><span>THIS WEEK</span><strong>{verifiedDistance.toFixed(2)}</strong><small>KM RECORDED</small><i><em style={{ width: weeklyProgress + "%" }} /></i></div>
         <div className="command-plan"><div><span>TODAY&apos;S PLAN</span><b>{personalTarget}K {personalTarget === 2 ? "easy reset" : personalTarget === 5 ? "steady run" : "long effort"}</b><small>{latestSavedRun ? "Last receipt · " + latestSavedRun.distance.toFixed(2) + " km" : "Choose a target, then start when ready."}</small></div><div className="target-pills" role="group" aria-label="Personal run target">{[2, 5, 10].map((target) => <button key={target} className={personalTarget === target ? "active" : ""} onClick={() => setPersonalTarget(target)}>{target}K</button>)}</div></div>
-        <div className="command-trust"><span>RUNNER PROMISE</span><b>GPS only while you run</b><small>Route points are discarded after saving.</small></div>
+        <div className="command-trust"><span>RUNNER STATS</span><b>{streak} day streak · {longestRun.toFixed(1)} km longest</b><small>{bestPaceRun ? "Best pace " + formatPace(bestPaceRun.seconds, bestPaceRun.distance) + " /km" : "Complete a run to set your first best."}</small></div>
       </section>
       <div className="run-journey" aria-label="How the runner flow works"><span className="journey-live"><i /> Live GPS session</span><span>Save private receipt</span><span>Check rewards later</span></div>
       <div className="start-panel quick-run-panel">
@@ -455,19 +658,19 @@ function RunnerApp() {
   );
 }
 
-function RunSummary({ run, onContinue, onActivity, onRewards }: { run: SavedRun; onContinue: () => void; onActivity: () => void; onRewards: () => void }) {
-  const pace = run.distance > 0 ? run.seconds / 60 / run.distance : 0;
-  return <section className="runner-surface run-summary"><Badge tone="green">RUN SAVED</Badge><div className="summary-hero"><span>✓</span><h1>Nice work.</h1><p>Your route was discarded. Only this private activity receipt was saved.</p></div><div className="summary-metrics"><div><b>{run.distance.toFixed(2)}</b><small>KM</small></div><div><b>{formatTime(run.seconds)}</b><small>TIME</small></div><div><b>{pace ? formatTime(Math.round(pace * 60)) : "--:--"}</b><small>PACE /KM</small></div></div><div className="summary-receipt"><span>⌁</span><p><b>{run.mode === "live" ? "Live GPS receipt" : "Demo receipt"}</b><small>Proof {run.proofId} · raw GPS points deleted</small></p></div><div className="summary-actions"><button className="button button-primary" onClick={onRewards}>Check rewards <span>→</span></button><button className="button button-secondary" onClick={onActivity}>View activity</button><button className="text-button" onClick={onContinue}>Start another run</button></div></section>;
+function RunSummary({ run, onContinue, onActivity, onRewards, onShare }: { run: SavedRun; onContinue: () => void; onActivity: () => void; onRewards: () => void; onShare: () => void }) {
+  return <section className="runner-surface run-summary"><Badge tone={run.verification === "verified" ? "green" : "amber"}>{run.verification === "verified" ? "RUN VERIFIED" : "REVIEW NEEDED"}</Badge><div className="summary-hero"><span>✓</span><h1>Strong finish.</h1><p>Your route was discarded. The activity receipt keeps only performance and verification signals.</p></div><div className="summary-metrics"><div><b>{run.distance.toFixed(2)}</b><small>KM</small></div><div><b>{formatTime(run.movingSeconds)}</b><small>MOVING</small></div><div><b>{formatPace(run.movingSeconds, run.distance)}</b><small>PACE /KM</small></div></div><div className="summary-detail-grid"><div><span>Elapsed time</span><b>{formatTime(run.elapsedSeconds)}</b></div><div><span>GPS quality</span><b>{run.avgAccuracy ? "±" + Math.round(run.avgAccuracy) + "m" : run.mode === "demo" ? "Simulated" : "Unavailable"}</b></div><div><span>Splits</span><b>{run.splits.length || "—"}</b></div></div>{run.splits.length > 0 && <div className="split-list"><span className="eyebrow">KILOMETER SPLITS</span>{run.splits.map((split, index) => <div key={index}><span>KM {index + 1}</span><b>{formatTime(split)}</b></div>)}</div>}<div className="summary-receipt"><span>⌁</span><p><b>{run.mode === "live" ? "Live GPS receipt" : "Demo receipt"}</b><small>Proof {run.proofId} · raw GPS points deleted</small></p></div>{run.riskReasons.length > 0 && <div className="review-note"><b>Why this run needs review</b><span>{run.riskReasons.join(" · ")}</span></div>}<div className="summary-actions"><button className="button button-primary" onClick={onRewards}>Check rewards <span>→</span></button><button className="button button-secondary" onClick={onShare}>Share to Telegram</button><button className="button button-secondary" onClick={onActivity}>View activity</button><button className="text-button" onClick={onContinue}>Start another run</button></div></section>;
 }
-
 function WalletSheet({ connected, address, onClose }: { connected: boolean; address: string; onClose: () => void }) {
   return <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="TON wallet connection"><div className="wallet-modal"><button className="modal-close" onClick={onClose} aria-label="Close wallet dialog">×</button><Badge tone="blue">TON CONNECT · TESTNET</Badge><h2>{connected ? "Wallet connected" : "Connect a TON wallet"}</h2><p>{connected ? `${address.slice(0, 6)}…${address.slice(-6)} is connected through TON Connect.` : "Choose a testnet-capable TON wallet. Runner never sees or stores your private key."}</p><div className="wallet-option"><span className="ton-logo">◆</span><div><b>TON Connect</b><small>{connected ? "Wallet connection confirmed" : "Open your wallet to connect"}</small></div>{connected ? <Badge tone="green">CONNECTED</Badge> : <TonConnectButton />}</div><p className="simulation-note">Wallet connection is live. Claim stays disabled until the audited testnet escrow address and oracle proof endpoint are configured.</p></div></div>;
 }
 
 function ActivityScreen({ savedRuns, onRewards, onRun, onClear }: { savedRuns: SavedRun[]; onRewards: () => void; onRun: () => void; onClear: () => void }) {
   if (savedRuns.length === 0) return <div className="empty-state"><div className="empty-icon">↗</div><Badge tone="neutral">NO ACTIVITIES YET</Badge><h2>Your run history will live here.</h2><p>Start a foreground GPS session whenever you want. Saving a run never guarantees a reward—eligibility is checked separately.</p><button className="button button-primary" onClick={onRun}>Start a quick run <span>→</span></button></div>;
-  const weeklyDistance = savedRuns.reduce((total, run) => total + run.distance, 0);
-  return <div className="activity-view"><div className="section-heading"><div><Badge tone="green">ACTIVITIES SAVED</Badge><h1>Every run stays on your record.</h1><p>Several activity receipts can contribute to an open weekly rule. Only summaries and proof IDs are retained—never a persistent route map.</p></div><div className="activity-actions"><button className="text-button" onClick={onClear}>Clear this device</button><button className="button button-primary" onClick={onRewards}>View matching rewards <span>→</span></button></div></div><div className="weekly-progress"><div><span className="eyebrow">THIS WEEK</span><b>{weeklyDistance.toFixed(2)} <small>/ {campaign.goal.toFixed(2)} KM</small></b><p>{savedRuns.length} verified activity {savedRuns.length === 1 ? "receipt" : "receipts"} ready for matching.</p></div><div className="weekly-progress-bar"><span style={{ width: `${Math.min(100, (weeklyDistance / campaign.goal) * 100)}%` }} /></div></div><div className="activity-list">{savedRuns.map((savedRun, index) => <div className="activity-card" key={savedRun.proofId}><div className="privacy-receipt"><span className="receipt-lock">⌁</span><b>Private by default</b><small>NO ROUTE MAP STORED</small></div><div className="activity-body"><div className="activity-meta"><Badge tone={savedRun.mode === "live" ? "green" : "amber"}>{savedRun.mode === "live" ? "LIVE GPS" : "DEMO ROUTE"}</Badge><span>{index === 0 ? "Saved just now" : `Activity ${savedRuns.length - index}`} · no campaign joined</span></div><div className="activity-stats"><div><b>{savedRun.distance.toFixed(2)}</b><span>KM</span></div><div><b>{formatTime(savedRun.seconds)}</b><span>TIME</span></div><div><b>{savedRun.distance ? `${Math.floor(savedRun.seconds / 60 / savedRun.distance)}:${Math.round(((savedRun.seconds / 60 / savedRun.distance) % 1) * 60).toString().padStart(2, "0")}` : "--:--"}</b><span>PACE /KM</span></div></div><div className="activity-save-note"><span>✓</span><p><b>Activity proof {savedRun.proofId}</b><small>Distance, duration, session window and verification result are retained. Raw GPS points were discarded after this session.</small></p></div></div></div>)}</div></div>;
+  const weeklyDistance = savedRuns.filter((run) => run.verification === "verified").reduce((total, run) => total + run.distance, 0);
+  const longest = savedRuns.reduce((best, run) => Math.max(best, run.distance), 0);
+  const streak = currentStreak(savedRuns);
+  return <div className="activity-view"><div className="section-heading"><div><Badge tone="green">ACTIVITIES SAVED</Badge><h1>Every run stays on your record.</h1><p>Several activity receipts can contribute to an open weekly rule. Only summaries and proof IDs are retained—never a persistent route map.</p></div><div className="activity-actions"><button className="text-button" onClick={onClear}>Clear this device</button><button className="button button-primary" onClick={onRewards}>View matching rewards <span>→</span></button></div></div><div className="activity-insights"><div><span>CURRENT STREAK</span><b>{streak} days</b></div><div><span>LONGEST RUN</span><b>{longest.toFixed(2)} km</b></div><div><span>TOTAL RECEIPTS</span><b>{savedRuns.length}</b></div></div><div className="weekly-progress"><div><span className="eyebrow">THIS WEEK</span><b>{weeklyDistance.toFixed(2)} <small>/ {campaign.goal.toFixed(2)} KM</small></b><p>{savedRuns.length} verified activity {savedRuns.length === 1 ? "receipt" : "receipts"} ready for matching.</p></div><div className="weekly-progress-bar"><span style={{ width: `${Math.min(100, (weeklyDistance / campaign.goal) * 100)}%` }} /></div></div><div className="activity-list">{savedRuns.map((savedRun) => <div className="activity-card" key={savedRun.proofId}><div className="privacy-receipt"><span className="receipt-lock">⌁</span><b>Private by default</b><small>NO ROUTE MAP STORED</small></div><div className="activity-body"><div className="activity-meta"><Badge tone={savedRun.verification === "review" ? "amber" : savedRun.mode === "live" ? "green" : "neutral"}>{savedRun.verification === "review" ? "REVIEW" : savedRun.mode === "live" ? "VERIFIED GPS" : "DEMO"}</Badge><span>{new Date(savedRun.endedAt).toLocaleDateString()} · no campaign joined</span></div><div className="activity-stats"><div><b>{savedRun.distance.toFixed(2)}</b><span>KM</span></div><div><b>{formatTime(savedRun.movingSeconds)}</b><span>MOVING</span></div><div><b>{formatPace(savedRun.movingSeconds, savedRun.distance)}</b><span>PACE /KM</span></div></div><div className="activity-save-note"><span>✓</span><p><b>Activity proof {savedRun.proofId}</b><small>Distance, duration, session window and verification result are retained. Raw GPS points were discarded after this session.</small></p></div></div></div>)}</div></div>;
 }
 
 function RewardsScreen({ savedRuns, verifiedDistance, rewardStatus, wallet, onCheck, onClaim, onRun, onConnectWallet }: { savedRuns: SavedRun[]; verifiedDistance: number; rewardStatus: RewardStatus; wallet: boolean; onCheck: () => void; onClaim: () => void; onRun: () => void; onConnectWallet: () => void }) {
