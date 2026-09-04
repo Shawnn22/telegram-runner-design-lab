@@ -24,13 +24,14 @@ Review runner-app patterns from Dribbble and apply only patterns that improve th
 - Telegram Mini Apps LocationManager: https://core.telegram.org/bots/webapps
 - MapLibre GL JS: https://maplibre.org/maplibre-gl-js/docs/
 - OpenFreeMap quick start: https://openfreemap.org/quick_start/
+- CARTO basemap tiles: https://github.com/CartoDB/basemaps
 
 ## Root cause and fix
 
 - The old map was an OpenStreetMap export iframe created only after the first accepted GPS fix. The iframe endpoint timed out during verification.
 - GPS points with accuracy worse than 65 m were rejected before setting the visible position. A normal coarse first fix therefore left the entire map in a permanent waiting state.
 - Telegram polling started only when that first fix also populated the accepted-point ref. A coarse first response could prevent follow-up Telegram readings.
-- The new MapLibre map loads immediately with an OpenFreeMap style, shows coarse position without counting distance, polls after any Telegram location response, and draws only accepted points into the route. A denied GPS request remains on the tracking screen with retry/settings actions.
+- The revised MapLibre map uses a minimal inline raster style backed by CARTO tiles, shows coarse position without counting distance, polls after any Telegram location response, and draws only accepted points into the route. A denied GPS request remains on the tracking screen with retry/settings actions.
 
 ## Production boundary
 

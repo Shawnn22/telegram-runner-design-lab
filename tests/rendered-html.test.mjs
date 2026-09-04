@@ -76,7 +76,7 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /tonconnect-manifest\.json/);
   const liveMap = await readFile(new URL("../app/live-run-map.tsx", import.meta.url), "utf8");
   assert.match(liveMap, /import\("maplibre-gl"\)/);
-  assert.match(liveMap, /tiles\.openfreemap\.org\/styles\/positron/);
+  assert.match(liveMap, /basemaps\.cartocdn\.com\/light_all/);
   assert.match(liveMap, /runner-route/);
   assert.match(liveMap, /Map ready · waiting for GPS/);
   assert.match(liveMap, /Recenter map on your location/);

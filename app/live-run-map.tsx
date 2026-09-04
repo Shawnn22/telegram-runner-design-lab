@@ -1,7 +1,23 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
+import type { GeoJSONSource, Map as MapLibreMap, Marker, StyleSpecification } from "maplibre-gl";
+
+const BASE_MAP_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    carto: {
+      type: "raster",
+      tiles: ["https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png"],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors © CARTO",
+    },
+  },
+  layers: [
+    { id: "base-background", type: "background", paint: { "background-color": "#eaf7fb" } },
+    { id: "carto-base", type: "raster", source: "carto", paint: { "raster-opacity": 1 } },
+  ],
+};
 
 export type RunMapPoint = {
   latitude: number;
@@ -38,7 +54,7 @@ export function LiveRunMap({ latestPoint, routePoints }: { latestPoint: RunMapPo
       if (disposed || !containerRef.current || mapRef.current) return;
       const map = new maplibregl.Map({
         container: containerRef.current,
-        style: "https://tiles.openfreemap.org/styles/positron",
+        style: BASE_MAP_STYLE,
         center: [0, 18],
         zoom: 1.4,
         attributionControl: false,
@@ -48,8 +64,13 @@ export function LiveRunMap({ latestPoint, routePoints }: { latestPoint: RunMapPo
       map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
       map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-right");
 
-      map.on("load", () => {
+      const loadTimeout = window.setTimeout(() => {
+        if (!disposed && !map.isStyleLoaded()) setMapError(true);
+      }, 8000);
+
+      map.once("style.load", () => {
         if (disposed) return;
+        window.clearTimeout(loadTimeout);
         map.addSource("runner-route", {
           type: "geojson",
           lineMetrics: true,
