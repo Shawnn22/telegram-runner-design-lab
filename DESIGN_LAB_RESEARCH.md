@@ -4,12 +4,12 @@ Updated: 2026-09-03
 
 ## Design decision
 
-The Design Lab uses a **Midnight Field System** rather than a crypto dashboard: calm Telegram-aware planning surfaces, then a dark, high-contrast training instrument as soon as a session starts.
+The Design Lab uses a **Solar Motion System** rather than a crypto dashboard: white and ice-blue planning surfaces, Telegram blue motion accents, and an energetic but legible live running instrument.
 
 - One dominant action before a run: start a live foreground GPS session.
 - During a run: distance, elapsed time, pace, GPS state, pause, and finish only. Reward information remains secondary.
 - At the end: a compact private-receipt summary before the separate Rewards check.
-- Tone: serious athletic tool, with signal blue for GPS/trust and acid-lime only for positive progress or live state.
+- Tone: a confident daylight athletic tool, with Telegram blue as the primary energy cue and aqua/mint reserved for movement and positive progress.
 
 ## Research signals applied
 
