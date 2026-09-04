@@ -88,6 +88,7 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /Activities saved/i);
   assert.match(page, /STRIDE/);
   assert.match(page, /Stride running experience/);
+  assert.match(page, /brand-logo/);
   assert.match(page, /Foreground only/i);
   assert.match(page, /RUN_STORAGE_KEY/);
   assert.match(page, /localStorage/);
@@ -103,6 +104,7 @@ test("keeps simulated integrations explicit", async () => {
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   assert.match(css, /stride-hero/);
   assert.match(css, /stride-logo-telegram-blue-v1\.png/);
+  assert.match(layout, /stride-logo-telegram-blue-v1\.png/);
   assert.match(css, /@keyframes stride-orbit/);
   const previewFiles = await readdir(new URL("../app/_sites-preview", import.meta.url)).catch((error) => {
     if (error && error.code === "ENOENT") return [];

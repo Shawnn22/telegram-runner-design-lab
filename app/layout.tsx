@@ -21,17 +21,17 @@ export const metadata: Metadata = {
     title: "Stride — Move with purpose.",
     description:
       "Foreground GPS running inside Telegram, private by default, with optional TON rewards.",
-    images: [{ url: "/og.png", width: 1536, height: 1024 }],
+    images: [{ url: "/stride-logo-telegram-blue-v1.png", width: 1536, height: 1024 }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Stride — Move with purpose.",
     description: "A Telegram-native running experience with optional TON rewards.",
-    images: ["/og.png"],
+    images: ["/stride-logo-telegram-blue-v1.png"],
   },
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+    icon: "/stride-logo-telegram-blue-v1.png",
+    shortcut: "/stride-logo-telegram-blue-v1.png",
   },
 };
 

@@ -289,3 +289,8 @@
 .design-lab .stride-logo-stage{animation:stride-light-drift 7s ease-in-out infinite}.design-lab .start-run,.design-lab .runner-nav button.active{background-size:200% 100%;animation:stride-light-sweep 5s linear infinite}
 @media(max-width:800px){.design-lab .topbar{background:rgba(255,255,255,.88)}.design-lab .runner-nav{border-color:#d4e8f3;background:rgba(255,255,255,.92);box-shadow:0 18px 42px rgba(29,121,174,.18)}.design-lab .runner-nav button{color:#688198}.design-lab .runner-nav button.active{background:linear-gradient(135deg,#1683ce,#2aabee);color:#fff}.design-lab .start-control{background:#f8fdff}}
 @media(prefers-reduced-motion:reduce){.design-lab .stride-logo-stage,.design-lab .start-run,.design-lab .runner-nav button.active{animation:none}}
+
+
+/* Official Stride wordmark: the selected Telegram-blue logo replaces the temporary S tile. */
+.design-lab .brand-logo{display:block;width:116px;height:35px;overflow:hidden;border:1px solid #d7ebf6;border-radius:10px;background:#fff url('/stride-logo-telegram-blue-v1.png') center/cover no-repeat;box-shadow:0 9px 22px rgba(26,135,193,.13)}
+@media(max-width:520px){.design-lab .brand-logo{width:88px;height:31px}.design-lab .brand .badge-neutral{display:none}}
