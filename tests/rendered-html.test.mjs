@@ -132,6 +132,8 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(css, /stride-logo-telegram-blue-v1\.png/);
   assert.match(layout, /stride-logo-telegram-blue-v1\.png/);
   assert.match(css, /@keyframes stride-orbit/);
+  assert.match(css, /stride-hero h1\{color:#f8fdff/);
+  assert.match(css, /stride-hero p\{color:#c5dfed/);
   const previewFiles = await readdir(new URL("../app/_sites-preview", import.meta.url)).catch((error) => {
     if (error && error.code === "ENOENT") return [];
     throw error;
