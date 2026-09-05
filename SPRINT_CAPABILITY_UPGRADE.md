@@ -22,6 +22,9 @@ Make the Design Lab behave like a usable foreground running app without adding a
 - Run history is written synchronously at save time, restored from device storage, capped at 200 receipts and exportable as JSON.
 - Activity adds persistent-storage confirmation, total distance, total moving time, average pace, longest run and Live/Demo/Review filters.
 - Personal target, workout type and tracking mode persist across app sessions.
+- Top banner now carries the Stride symbol and wordmark; Quick Run, Activity and Rewards are explicit screens with a dedicated Reward shortcut.
+- The running setup switches to a single-column layout at tablet widths to prevent the clipped-right-panel defect reported at about 880 px.
+- The bright atmospheric background adds layered blue and mint depth while keeping content readable.
 - Rewards stays visible as an optional feature. With no active campaign it shows an honest waiting state; campaign rules, matching and claim controls mount only when campaign data is active.
 - Automatic reward matching when an active campaign opens in Rewards; wallet remains claim-only.
 

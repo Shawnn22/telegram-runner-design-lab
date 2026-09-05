@@ -156,7 +156,7 @@ export default function Home() {
     <main className="app-shell design-lab">
       <header className="topbar">
         <Link className="brand" href="/" aria-label="Stride home">
-          <span className="brand-logo" aria-label="Stride">STRIDE</span>
+          <span className="brand-logo" aria-label="Stride"><i className="brand-symbol">S</i><b className="brand-word">STRIDE</b></span>
           <Badge tone="neutral">TON</Badge><span className="lab-signal">PRIVATE BETA</span>
         </Link>
         <div className="user-flow-label"><b>STRIDE SIGNAL</b><span>Start → record → save privately</span></div>
@@ -651,12 +651,12 @@ function RunnerApp() {
   return (
     <section className="runner-surface">
       <div className="runner-header">
-        <div className="runner-welcome"><div className="runner-avatar">S</div><div><Badge tone="blue">STRIDE RUNNING</Badge><h2>{savedRuns.length ? "Keep your signal moving." : "Your momentum starts here."}</h2><p>{savedRuns.length ? `${savedRuns.length} activity ${savedRuns.length === 1 ? "receipt" : "receipts"} saved this week.` : "No setup. Choose your run and move."}</p></div></div>
-        <div className="weekly-glance"><span>THIS WEEK</span><b>{verifiedDistance.toFixed(1)} <small>/ {personalTarget} km</small></b><i><em style={{ width: `${weeklyProgress}%` }} /></i></div>
+        <div className="runner-welcome"><div><Badge tone="blue">STRIDE RUNNING</Badge><h2>{savedRuns.length ? "Keep your signal moving." : "Your momentum starts here."}</h2><p>{savedRuns.length ? `${savedRuns.length} activity ${savedRuns.length === 1 ? "receipt" : "receipts"} saved this week.` : "No setup. Choose your run and move."}</p></div></div>
+        <div className="weekly-glance"><span>THIS WEEK</span><b>{verifiedDistance.toFixed(1)} <small>/ {personalTarget} km</small></b><i><em style={{ width: weeklyProgress + "%" }} /></i></div><button className="reward-shortcut" onClick={() => setTab("rewards")}><i>✦</i><span><b>Rewards</b><small>{campaignModeEnabled ? "Campaign live" : "Optional feature"}</small></span></button>
         {campaignModeEnabled && <button className={`wallet-chip ${wallet ? "connected" : ""}`} onClick={() => setWalletSheet(true)}>{wallet ? `${walletAddress.slice(0, 4)}…${walletAddress.slice(-4)} · Connected` : "Connect TON wallet"}</button>}
       </div>
       <nav className="runner-nav" aria-label="Runner sections">
-        <button className={tab === "run" ? "active" : ""} onClick={() => setTab("run")}><i>⌁</i>Run</button>
+        <button className={tab === "run" ? "active" : ""} onClick={() => setTab("run")}><i>⌁</i>Quick Run</button>
         <button className={tab === "activity" ? "active" : ""} onClick={() => setTab("activity")}><i>◷</i>Activity {savedRuns.length > 0 && <span>{savedRuns.length}</span>}</button>
         <button className={tab === "rewards" ? "active" : ""} onClick={() => setTab("rewards")}><i>✦</i>Rewards {campaignModeEnabled && savedRuns.length > 0 && rewardStatus !== "claimed" && <span>1</span>}</button>
       </nav>

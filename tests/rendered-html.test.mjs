@@ -68,6 +68,9 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /KILOMETER SPLITS/);
   assert.match(page, /route-energy-stage/);
   assert.match(page, /Quick start run/);
+  assert.match(page, /brand-symbol/);
+  assert.match(page, /Quick Run/);
+  assert.match(page, /reward-shortcut/);
   assert.match(page, /READY TO RUN/);
   assert.match(page, /run-setup/);
   assert.doesNotMatch(page, /stride-logo-stage/);
