@@ -19,6 +19,9 @@ Make the Design Lab behave like a usable foreground running app without adding a
 - Seven-day journey visualization and three progressive runner milestones in Run History.
 - Solar Sprint visual-depth system: atmospheric light field, glass navigation, layered elevations, deep focal surfaces and a typography-only header wordmark.
 - Quick Launch Dock surfaces GPS mode, current training plan and the primary Start action before brand storytelling, with a compact mobile layout.
+- Run history is written synchronously at save time, restored from device storage, capped at 200 receipts and exportable as JSON.
+- Activity adds persistent-storage confirmation, total distance, total moving time, average pace, longest run and Live/Demo/Review filters.
+- Personal target, workout type and tracking mode persist across app sessions.
 - Rewards stays visible as an optional feature. With no active campaign it shows an honest waiting state; campaign rules, matching and claim controls mount only when campaign data is active.
 - Automatic reward matching when an active campaign opens in Rewards; wallet remains claim-only.
 

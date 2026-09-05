@@ -125,6 +125,12 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /brand-logo/);
   assert.match(page, /Foreground only/i);
   assert.match(page, /RUN_STORAGE_KEY/);
+  assert.match(page, /RUN_PREFERENCES_KEY/);
+  assert.match(page, /MAX_SAVED_RUNS/);
+  assert.match(page, /window\.localStorage\.setItem\(RUN_STORAGE_KEY, JSON\.stringify\(nextRuns\)\)/);
+  assert.match(page, /Saved to Activity/);
+  assert.match(page, /Export history/);
+  assert.match(page, /history-storage-status/);
   assert.match(page, /localStorage/);
   assert.match(page, /clearRunHistory/);
   assert.match(page, /Personal run target/);
