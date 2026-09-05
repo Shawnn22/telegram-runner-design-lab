@@ -77,6 +77,11 @@ test("keeps simulated integrations explicit", async () => {
   assert.match(page, /Filter run history/);
   assert.match(page, /Verification timeline/);
   assert.match(page, /View reward matches/);
+  assert.match(page, /ACTIVE_CAMPAIGN_COUNT = 0/);
+  assert.match(page, /REWARDS · OPTIONAL/);
+  assert.match(page, /NO ACTIVE CAMPAIGN/);
+  assert.match(page, /Stride is a running tracker first/);
+  assert.match(page, /campaignModeEnabled \? <RewardsScreen/);
   assert.match(page, /navigator\.share/);
   assert.match(page, /setRewardStatus\(verifiedDistance >= campaign\.goal/);
   assert.match(page, /verification: riskReasons\.length/);
